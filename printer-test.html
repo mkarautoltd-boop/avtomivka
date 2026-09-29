@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="bg"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Тест принтер DPP-250</title>
+<style>
+body{margin:0;background:#eef2f8;font-family:-apple-system,sans-serif;color:#16223a}
+h1{background:#0f1e3d;color:#fff;margin:0;padding:16px;font-size:19px}
+.w{padding:16px;max-width:520px;margin:auto}
+button{display:block;width:100%;border:0;border-radius:12px;padding:15px;font-size:17px;font-weight:700;color:#fff;background:#2563eb;margin-top:10px}
+button.g{background:#16a34a}button:disabled{opacity:.4}
+#log{font:12px/1.5 monospace;white-space:pre-wrap;background:#0f1e3d;color:#cde3ff;border-radius:10px;padding:10px;min-height:100px;margin-top:14px}
+</style></head><body>
+<h1>Тест на принтер DPP-250</h1>
+<div class="w">
+<div id="sup"></div>
+<button id="b1">1. Свържи принтера</button>
+<button id="b2" class="g" disabled>2. Текстова проба</button>
+<button id="b3" class="g" disabled>3. Талон като картинка</button>
+<div id="log"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s),log=m=>{$('#log').textContent+=m+'\n'};
+const SV=['49535343-fe7d-4ae5-8fa9-9fafd205e455','000018f0-0000-1000-8000-00805f9b34fb','e7810a71-73ae-499d-8c15-faa9aef0c3f2','0000ff00-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb','0000fff0-0000-1000-8000-00805f9b34fb','6e400001-b5a3-f393-e0a9-e50e24dcca9e','0000ae30-0000-1000-8000-00805f9b34fb'];
+let ch=null;
+$('#sup').textContent=navigator.bluetooth?'✓ Браузърът поддържа Bluetooth':'✗ Няма Bluetooth — отворете страницата в Bluefy';
+$('#b1').onclick=async()=>{try{
+ log('Търся принтер…');
+ const d=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:SV});
+ log('Избран: '+(d.name||'(без име)'));
+ const g=await d.gatt.connect();log('Свързан. Търся канал…');
+ for(const s of await g.getPrimaryServices()){log(' услуга '+s.uuid);
+  for(const c of await s.getCharacteristics()){const p=c.properties;
+   if(!ch&&(p.write||p.writeWithoutResponse)){ch=c;log(' → канал '+c.uuid)}}}
+ if(!ch){log('✗ Няма канал за печат');return}
+ $('#b2').disabled=$('#b3').disabled=false;log('✓ Готово. Пробвайте печат.');
+}catch(e){log('✗ '+e.message)}};
+async function send(b){const n=ch.properties.writeWithoutResponse?100:20;
+ for(let i=0;i<b.length;i+=n){const x=b.slice(i,i+n);
+  ch.properties.writeWithoutResponse?await ch.writeValueWithoutResponse(x):await ch.writeValue(x);
+  await new Promise(r=>setTimeout(r,25))}}
+function enc(s,t){const o=[];for(const c of s){const u=c.charCodeAt(0);
+ if(u<128){o.push(u);continue}const i=u-0x410;if(i<0||i>63){o.push(63);continue}
+ o.push(t==1?(i<48?0x80+i:0xE0+i-48):t==2?0xC0+i:0x80+i)}return o}
+$('#b2').onclick=async()=>{const t='Талон № 7 Автомивка';
+ const b=[27,64,...enc('DPP-250 TEST OK'),10,...enc('1) '),...enc(t,1),10,...enc('2) '),...enc(t,2),10,...enc('3) '),...enc(t,3),10,10,10,10];
+ try{await send(new Uint8Array(b));log('Изпратено. Кой ред е на кирилица — 1, 2 или 3?')}catch(e){log('✗ '+e.message)}};
+$('#b3').onclick=async()=>{const W=384,H=260,cv=document.createElement('canvas');cv.width=W;cv.height=H;
+ const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#000';x.textAlign='center';
+ x.font='bold 26px sans-serif';x.fillText('АВТОМИВКА',W/2,32);
+ x.font='bold 40px sans-serif';x.fillText('ТАЛОН № 7',W/2,84);
+ x.font='22px sans-serif';x.fillText(new Date().toLocaleString('bg-BG'),W/2,116);
+ x.font='bold 44px sans-serif';x.fillText('СА 4521 КМ',W/2,176);
+ x.font='24px sans-serif';x.fillText('Кола вътре+вън · 18 €',W/2,214);x.fillText('Мияч: Иван',W/2,246);
+ const d=x.getImageData(0,0,W,H).data,bw=W/8,r=[];
+ for(let y=0;y<H;y++)for(let k=0;k<bw;k++){let v=0;for(let j=0;j<8;j++)if(d[(y*W+k*8+j)*4]<128)v|=128>>j;r.push(v)}
+ const b=[27,64,29,118,48,0,bw,0,H&255,H>>8,...r,10,10,10,10];
+ try{log('Изпращам картинка…');await send(new Uint8Array(b));log('Изпратено. Излезе ли талонът?')}catch(e){log('✗ '+e.message)}};
+</script></body></html>
