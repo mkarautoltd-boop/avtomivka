@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0B0B0D">
+<title>HELIOS Каса</title>
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><!--PWA-->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Onest:wght@400;500;600;700;800&display=swap">
+<style>
+:root{color-scheme:light;--navy:#0B0B0D;--navy2:#1F1F24;--teal:#F2C230;--gold-ink:#1A1400;--bg:#EFEFF2;--card:#fff;--text:#121A2E;--muted:#66728A;--line:#E2E7F0;--soft:#F3F5FA;
+  --green:#16A34A;--red:#DC2626;--amber:#D97706;--blue:#2563EB;--r:16px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:Onest,-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;font-size:15px;-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+button{font:inherit;color:inherit}
+input{font:inherit;color:var(--text)}
+.tnum{font-variant-numeric:tabular-nums;white-space:nowrap}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid #60A5FA;outline-offset:2px}
+
+.hdr{background:var(--navy);color:#fff;padding:14px 16px 16px;border-radius:0 0 24px 24px;position:sticky;top:env(safe-area-inset-top,0px);z-index:6}
+.hdr-top{display:flex;align-items:center;gap:10px;max-width:560px;margin:0 auto}
+.logo{width:36px;height:36px;border-radius:11px;background:var(--teal);color:var(--gold-ink);display:grid;place-items:center;flex:none}
+.hdr h1{font-size:17px;margin:0;font-weight:700;line-height:1.2}
+.hdr small{display:block;opacity:.65;font-size:12px;font-weight:500}
+.hdr .out{margin-left:auto;background:rgba(255,255,255,.1);border:0;border-radius:10px;padding:8px 12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.net{max-width:560px;margin:12px auto 0;border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px}
+.net.off{background:#7F1D1D;color:#FECACA}.net.sync{background:#78350F;color:#FDE68A}.net.done{background:#14532D;color:#BBF7D0}
+.net b{color:#fff}
+.duehit{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:12px;padding:8px 10px;font-size:14px}
+.duehit .btn{margin:0;flex:none}
+.duec{padding:12px 14px;margin-bottom:10px}
+.tabs button{position:relative}.tabn{position:absolute;top:3px;left:calc(50% + 8px);min-width:18px;padding:0 5px;border-radius:9px;background:#DC2626;color:#fff;font-size:11px;line-height:18px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:560px;margin:14px auto 0}
+.kpis.k4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kpi{background:rgba(255,255,255,.08);border-radius:12px;padding:8px 10px}
+.kpi b{display:block;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi span{font-size:11px;opacity:.7}
+.kpi.warn b{color:#FCA5A5}.kpi.good b{color:#F5D565}
+.wm{font-family:Cinzel,'Times New Roman',serif;font-weight:500;letter-spacing:.12em;color:var(--teal);font-size:12px;line-height:1}
+
+.wrap{max-width:560px;margin:0 auto;padding:14px 16px 170px}
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(14,26,54,.06)}
+.card h2{font-size:15px;margin:0 0 10px;font-weight:700}
+.sec-t{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px}
+.sec-t:first-child{margin-top:2px}
+.muted{color:var(--muted);font-size:13px}
+
+.plate-box{display:flex;border:3px solid #111827;border-radius:12px;overflow:hidden;background:#fff;height:66px}
+.plate-eu{background:#1D4ED8;color:#fff;width:40px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:8px 0 6px;font-weight:800;font-size:13px}
+.plate-eu i{width:16px;height:16px;border-radius:50%;border:2px dotted #FDE047}
+.plate-box input{flex:1;min-width:0;border:0;outline:0;text-align:center;font-size:30px;font-weight:800;letter-spacing:3px;text-transform:uppercase;background:transparent}
+.plate-box input::placeholder{color:#C4CAD6}
+.sugg{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.sugg::-webkit-scrollbar{display:none}
+.sugg button{flex:none;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 10px;font-weight:700;letter-spacing:1px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.sugg button em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:0;color:#92400E;background:#FEF3C7;border-radius:6px;padding:2px 6px}
+
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{position:relative;border:2px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:64px;transition:transform .08s}
+.tile:active{transform:scale(.97)}
+.ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--c) 14%,#fff);color:var(--c)}
+.tile .nm{font-weight:700;font-size:14px;line-height:1.2}
+.tile .pr{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;margin-top:2px;color:var(--c)}
+.tile.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 9%,#fff)}
+.tile.on::after{content:"";position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:var(--c) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/13px no-repeat}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--c);flex:none;font-size:14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#E3E8F1;padding:5px;border-radius:14px}
+.seg button{border:0;background:transparent;border-radius:10px;padding:12px 4px;font-weight:700;cursor:pointer;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(14,26,54,.15)}
+.seg button.on[data-v=firm]{background:#FEF3C7;color:#92400E}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}
+.badge.ok{background:#DCFCE7;color:#166534}.badge.bad{background:#FEE2E2;color:#991B1B}.badge.warn{background:#FEF3C7;color:#92400E}.badge.gray{background:#E5E7EB;color:#374151}.badge.blue{background:#DBEAFE;color:#1E40AF}
+
+.actbar{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:7;padding:0 12px 8px}
+.actbar-in{max-width:536px;margin:0 auto;background:var(--navy);color:#fff;border-radius:18px;padding:10px 10px 10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(14,26,54,.3)}
+.actbar .tot small{display:block;font-size:11px;opacity:.65}
+.actbar .tot b{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.actbar .go{margin-left:auto;border:0;border-radius:13px;background:var(--teal);color:var(--gold-ink);font-weight:800;font-size:17px;padding:14px 20px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.actbar .go:active{transform:scale(.97)}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);z-index:7;padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs-in{max-width:560px;margin:0 auto;display:flex}
+.tabs button{flex:1;border:0;background:none;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#8A94A8;cursor:pointer}
+.tabs button.on{color:var(--navy)}
+.tabs button.on svg{color:#B8860B}
+.tabs button.on{box-shadow:inset 0 3px 0 var(--teal)}
+
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.pl{font-weight:800;letter-spacing:1px}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:15px;font-size:16px;font-weight:700;color:#fff;background:var(--blue);margin-top:12px;cursor:pointer}
+.btn.green{background:var(--green)}.btn.teal{background:var(--teal);color:var(--gold-ink)}
+.btn.sec{background:var(--soft);color:var(--text)}
+.btn.sm{width:auto;display:inline-block;padding:8px 12px;font-size:13px;margin:0;border-radius:10px}
+.btn.void{background:#FEE2E2;color:#991B1B}
+.btn:disabled{opacity:.5}
+label.l{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px;font-weight:500}
+input.f{width:100%;font-size:17px;padding:12px;border:1.5px solid #CBD3E1;border-radius:12px;background:#fff;-webkit-appearance:none}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--green)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.stat{background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 2px rgba(14,26,54,.06);border-top:4px solid var(--c,var(--blue))}
+.stat b{display:block;font-size:21px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.wide{grid-column:1/-1}
+.alert{border-left:5px solid var(--red)}.alert.amb{border-left-color:var(--amber)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+.pchip{display:inline-flex;align-items:center;gap:4px;background:var(--soft);border-radius:9px;padding:6px 4px 6px 10px;margin:0 6px 6px 0;font-weight:800;letter-spacing:1px}
+.pchip button{border:0;background:none;color:var(--red);font-size:18px;font-weight:700;cursor:pointer;padding:0 6px}
+.money{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chart{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid #CBD3E1;position:relative}
+.chart button{flex:1;min-width:0;height:100%;border:0;background:none;padding:0;display:flex;align-items:flex-end;cursor:pointer}
+.chart button i{display:block;width:100%;background:var(--teal);border-radius:4px 4px 0 0;min-height:2px}
+.chart button.on i{background:var(--navy)}
+.chart button:hover i{filter:brightness(.9)}
+.chart-x{display:flex;gap:2px;font-size:10px;color:var(--muted);margin-top:4px}
+.chart-x span{flex:1;text-align:center;min-width:0}
+.chart-grid{position:absolute;left:0;right:0;pointer-events:none;border-top:1px dashed #E2E7F0;font-size:10px;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:18px 8px;font-size:14px}
+
+.login{min-height:100vh;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center}
+.hero{width:100%;height:300px;background:#000 center/cover no-repeat;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:34px;text-align:center}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,11,13,.85) 0%,rgba(11,11,13,.2) 45%,rgba(11,11,13,.2) 70%,#0B0B0D 100%)}
+.hero>*{position:relative;z-index:1}
+.hero small{font-weight:800;letter-spacing:.14em;font-size:13px}
+.hero .big{font-family:Cinzel,'Times New Roman',serif;font-size:44px;font-weight:500;letter-spacing:.08em;line-height:1.1;margin:2px 0 6px}
+.hero span{font-size:10px;font-weight:700;letter-spacing:.16em;opacity:.85}
+.lbody{width:100%;max-width:420px;padding:4px 20px 28px;display:flex;flex-direction:column;align-items:center}
+.lbody h2{font-size:15px;font-weight:600;opacity:.75;margin:6px 0 14px}
+.prof{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
+.prof button{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;color:#fff;cursor:pointer;text-align:left}
+.prof button:active{background:rgba(255,255,255,.14)}
+.prof .av{width:36px;height:36px;font-size:13px}
+.prof small{display:block;opacity:.6;font-size:11px}
+.ptitle{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.5;margin:14px 0 8px;align-self:flex-start}
+.ll{align-self:flex-start;font-size:13px;opacity:.7;margin:10px 0 6px}
+.li{width:100%;font:inherit;font-size:17px;padding:14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;outline:0}
+.li:focus{border-color:var(--teal)}
+.li::placeholder{color:rgba(255,255,255,.35)}
+.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--teal);font-weight:700;font-size:13px;cursor:pointer;padding:8px}
+.rem{align-self:flex-start;display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-size:14px;opacity:.85}
+.back{border:0;background:none;color:var(--teal);font-weight:700;margin-top:18px;cursor:pointer;font-size:14px}
+.dots{display:flex;gap:14px;margin:26px 0}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.5)}
+.dots i.f{background:var(--teal);border-color:var(--teal)}
+.dots{margin:18px 0 22px}
+.pad{display:grid;grid-template-columns:repeat(3,76px);gap:14px}
+.pad button{height:76px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:#fff;font-size:28px;font-weight:600;cursor:pointer}
+.pad button:active{background:rgba(255,255,255,.25)}
+.pad button.ok{background:var(--teal);color:var(--gold-ink);font-size:18px;font-weight:800}
+
+.modal{position:fixed;inset:0;background:rgba(14,26,54,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px;z-index:30}
+.modal .card{width:100%;max-width:440px;border-radius:22px;padding:18px}
+.talon{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff;color:#000;max-width:280px;margin:0 auto;padding:12px;border:1px dashed #9AA3B2;font-size:14px;line-height:1.45}
+.talon .tc{text-align:center}.talon .tbig{font-size:22px;font-weight:800;margin:4px 0}.talon .tplate{font-size:26px;font-weight:800;letter-spacing:2px}
+.talon .trow{display:flex;justify-content:space-between;gap:8px}.talon hr{border:0;border-top:1px dashed #000;margin:8px 0}
+#printArea{display:none}
+@media print{@page{size:58mm auto;margin:0}body>*:not(#printArea){display:none!important}#printArea{display:block!important}body{background:#fff}.talon{border:0;max-width:none;width:58mm;padding:2mm 3mm;font-size:12px}}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(150px + env(safe-area-inset-bottom,0px));max-width:520px;margin:auto;padding:14px;border-radius:14px;color:#fff;font-weight:700;text-align:center;z-index:40;display:none}
+.pend{width:100%;display:flex;align-items:center;gap:12px;background:#FFFBEB;border:2px solid var(--teal);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer;box-shadow:0 4px 14px rgba(242,194,48,.25)}
+.pend:active{transform:scale(.98)}
+.go-pill{background:var(--navy);color:#fff;font-weight:800;font-size:14px;border-radius:10px;padding:10px 12px;flex:none}
+/* широк екран (касата на компютър) */
+.cside{display:none}
+@media (min-width:1000px){
+  .wrap{max-width:1180px}
+  .hdr-top,.kpis,.tabs-in,.net{max-width:1180px}
+  .kpis{grid-template-columns:repeat(3,minmax(0,220px))}
+  .kpis.k4{grid-template-columns:repeat(4,minmax(0,220px))}
+  .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .stats .stat.wide{grid-column:span 2}
+  .has-side .cgrid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}
+  .has-side .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .has-side .cside{display:block;position:sticky;top:180px}
+  .has-side ~ #bar .actbar{display:none}
+  .has-side .tile{min-height:74px}
+  .modal{align-items:center}
+}
+.pkb{display:none}
+@media (min-width:1000px){
+  .has-side .pkb{display:block;margin-top:10px}
+  .pkb .reg{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:8px}
+  .pkb .reg button{min-width:0;height:46px;border-radius:10px;border:1.5px solid #CBD3E1;background:#fff;font-weight:800;font-size:16px;cursor:pointer}
+  .pkb .keys{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px}
+  .pkb .keys button{height:54px;border-radius:10px;border:0;background:#fff;box-shadow:0 1px 2px rgba(14,26,54,.12);font-weight:800;font-size:20px;cursor:pointer}
+  .pkb .keys button:active,.pkb .reg button:active{background:#FEF3C7}
+  .pkb .keys .dig{background:#F8FAFC}
+  .pkb .keys .wide2{grid-column:span 2;background:#FEE2E2;color:#991B1B;font-size:15px}
+  .pkb .keys .clr{grid-column:span 2;background:#E5E7EB;font-size:15px}
+  .kbd.nokeys{display:none}
+}
+@media (pointer:coarse){ .kbd{display:none} }
+@media (min-width:1300px){
+  .wrap,.hdr-top,.kpis,.tabs-in,.net{max-width:1560px}
+  .has-side .cgrid{grid-template-columns:minmax(0,1fr) 360px}
+  .has-side .cmain{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+  .has-side .cpick .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .has-side .cpick .tile{min-height:62px;padding:10px}
+  .has-side .sec-t{margin-top:12px}
+  .has-side .pkb .keys button{height:58px}
+  .has-side .cside{top:150px}
+}
+.side-tot{background:var(--navy);color:#fff;border-radius:18px;padding:18px}
+.side-tot small{opacity:.65;font-size:12px}
+.side-tot b.big{display:block;font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;margin:2px 0 12px}
+.side-tot .go{width:100%;border:0;border-radius:14px;background:var(--teal);color:var(--gold-ink);font-weight:800;font-size:20px;padding:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+.kbd{display:inline-block;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:1px 6px;font-size:11px;margin-left:6px}
+.last{display:flex;align-items:center;gap:10px;background:#ECFDF5;border:1.5px solid #A7F3D0;border-radius:14px;padding:10px 12px;margin-bottom:12px}
+.last b{font-size:15px}
+.modal .card{max-height:92vh;overflow-y:auto}
+.tlab{text-align:center;font-weight:800;border:1.5px solid #000;border-radius:4px;padding:1px 0;margin:4px 0}
+.sw{appearance:none;-webkit-appearance:none;width:52px!important;height:30px!important;border-radius:999px;background:#CBD3E1;position:relative;cursor:pointer;flex:none;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+.sw:checked{background:var(--green)}.sw:checked::after{left:25px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style id="heroimg">.hero{background-image:url(data:image/jpeg;base64,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)}</style>
+</head>
+<body>
+<!--DEMO-BAR-->
+<div id="root"></div>
+<div class="toast" id="toast" role="status"></div>
+<div id="printArea"></div>
+
+<script src="engine.js"></script><!--ENGINE-->
+<script>
+// ▼▼▼ Постави тук URL-а на уеб приложението от Apps Script ▼▼▼
+const API_URL = 'ПОСТАВИ_ТУК_URL_ОТ_APPS_SCRIPT';
+const AUTO_PRINT = true;   // талонът се печата веднага след записа
+// ▲▲▲
+
+let S = { pin: '', uid: '', user: null, address: '', prices: [], washers: [], firms: [], talonName: 'АВТОМИВКА', tab: '', day: null };
+let pinBuf = '', timer = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const eur = n => (Math.round((+n || 0) * 100) / 100).toFixed(2) + ' €';
+const PAYL = { cash: 'В брой', card: 'Карта', firm: 'Фирма', null: 'Плаща при взимане' };
+const COLORS = ['#2563EB', '#0D9488', '#7C3AED', '#EA580C', '#DB2777', '#0891B2', '#65A30D', '#CA8A04'];
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function bgDate(s) { const [y, m, d] = s.split('-'); return d + '.' + m + '.' + y; }
+function normPlate(s) { const m = { 'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','У':'Y','Х':'X' };
+  return String(s || '').toUpperCase().replace(/[АВЕКМНОРСТУХ]/g, c => m[c]).replace(/[^A-Z0-9]/g, ''); }
+function store(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+const initials = n => String(n).split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase();
+
+/* ---------- иконки ---------- */
+const I = {
+  car: '<path d="M5 16h14M6.5 16l1.4-5.2A2 2 0 0 1 9.8 9.3h4.4a2 2 0 0 1 1.9 1.5L17.5 16M4 16v2.5h2.5V16M17.5 16v2.5H20V16M4 16a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1"/>',
+  suv: '<path d="M3 16h18v-3.5l-2.5-.8L16.5 7h-9L5 11.2 3 12z"/><circle cx="7" cy="16.5" r="1.8"/><circle cx="17" cy="16.5" r="1.8"/><path d="M8 11h8"/>',
+  van: '<path d="M2 16V7a1 1 0 0 1 1-1h11l4 4 3 1v5z"/><circle cx="6.5" cy="16.5" r="1.8"/><circle cx="17" cy="16.5" r="1.8"/><path d="M14 6v5h7"/>',
+  drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/>',
+  wheel: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/>',
+  spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+  print: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  building: '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9 15h.01M15 15h.01M10 21v-3h4v3"/>',
+  file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  check: '<path d="M5 12l5 5 9-10"/>', ticket: '<path d="M3 8a2 2 0 0 0 0 4v4h18v-4a2 2 0 0 1 0-4V4H3z"/><path d="M13 4v12"/>'
+};
+const ic = (n, s = 22) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+function svcIcon(name) {
+  const n = name.toLowerCase();
+  if (/бус|микробус/.test(n)) return 'van'; if (/джип|suv/.test(n)) return 'suv'; if (/кола|лек/.test(n)) return 'car';
+  if (/восък|полир|вакса/.test(n)) return 'drop'; if (/джант|гум/.test(n)) return 'wheel'; return 'spark';
+}
+const LOGO = `<div class="logo">${ic('sun', 22)}</div>`;
+
+/* ---------- API ---------- */
+/*API-START*/
+// заявка към сървъра (Google Apps Script). TypeError = няма връзка; AppError = сървърът отговори с проблем
+async function post(body) {
+  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+  const t = await r.text();
+  try { return JSON.parse(t); } catch (e) { throw new AppError('Сървърът върна странен отговор. Провери адреса в API_URL и дали Apps Script е публикуван за „Anyone“.'); }
+}
+/*API-END*/
+function askReason() {
+  return new Promise(res => {
+    const o = document.createElement('div'); o.className = 'modal';
+    o.innerHTML = `<div class="card" role="dialog" aria-label="Анулиране"><h2 style="font-size:18px">Анулиране на талон</h2>
+      <label class="l" for="rsn">Причина</label><input class="f" id="rsn" placeholder="напр. грешен номер">
+      <div style="display:flex;gap:8px"><button class="btn sec" id="rsnNo">Отказ</button><button class="btn" id="rsnOk" style="background:var(--red)">Анулирай</button></div></div>`;
+    document.body.appendChild(o); $('#rsn').focus();
+    $('#rsnOk').onclick = () => { const v = $('#rsn').value.trim(); if (!v) { toast('Напиши причина', false); return; } o.remove(); res(v); };
+    $('#rsnNo').onclick = () => { o.remove(); res(''); };
+  });
+}
+
+function toast(msg, ok = true) {
+  const t = $('#toast');
+  t.textContent = msg; t.style.background = ok ? 'var(--green)' : 'var(--red)'; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 2600);
+}
+
+/* ---------- каркас ---------- */
+function shell(sub, tabs) {
+  $('#root').innerHTML = `<div class="hdr"><div class="hdr-top">${LOGO}<div><div class="wm">HELIOS</div><h1>${esc(S.user.name)}</h1><small>${esc(sub)}</small></div>
+      <button class="out" id="out">Изход</button></div><div id="net"></div><div id="kpis"></div></div>
+    <div class="wrap" id="app"></div><div id="bar"></div>
+    ${tabs ? `<nav class="tabs" aria-label="Раздели"><div class="tabs-in">${tabs.map(t => `<button data-tab="${t[0]}">${ic(t[2])}${t[1]}</button>`).join('')}</div></nav>` : ''}`;
+  $('#out').onclick = logout; netBar();
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => go(b.dataset.tab));
+}
+// връзка с интернет: касата работи и без нея — записите чакат в опашка и се изпращат сами
+/* ---------- ВРЪЗКА И РАБОТА БЕЗ ИНТЕРНЕТ ----------
+   Касата пази копие на данните (REP) и смята всичко на място. Записите отиват на сървъра;
+   без интернет се правят на касата и чакат в опашка, докато връзката се върне. */
+class AppError extends Error {}
+const NET = { off: false, queue: [], syncing: false, flushing: false, sent: 0, failed: [] };
+const PERSIST = API_URL !== 'demo';
+const REPKEY = 'rep|' + API_URL, QKEY = 'queue|' + API_URL;
+let REP = null;
+const pad2 = x => String(x).padStart(2, '0');
+const localEnv = { today: todayStr, now: () => { const d = new Date(); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }, uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7) };
+const newCid = () => 'c' + localEnv.uid();
+const cred = () => ({ login: S.uid, pass: S.pin });
+const cashierMode = () => !!(S.user && S.user.role === 'cashier');
+const IDB = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => { const r = indexedDB.open('helios', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+  return {
+    async get(k) { try { const d = await open(); return await new Promise((res, rej) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch (e) { return undefined; } },
+    async set(k, v) { try { const d = await open(); await new Promise((res, rej) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch (e) {} }
+  };
+})();
+async function saveLocal() { if (PERSIST) { await IDB.set(REPKEY, REP); await IDB.set(QKEY, NET.queue); } }
+async function openReplica() { if (REP || !PERSIST) return; REP = (await IDB.get(REPKEY)) || null; NET.queue = (await IDB.get(QKEY)) || []; }
+function creds() { try { return JSON.parse(load('hl_creds') || '{}'); } catch (e) { return {}; } }
+function credHash(login, pass) { return HELIOS.sha256('cred|' + String(login).toLowerCase() + '|' + pass); }
+function mergeDelta(d) { if (!REP) REP = HELIOS.emptyDb(); HELIOS.applyDelta(REP, d); }
+function goOffline() { if (!NET.off) { NET.off = true; netBar(); } }
+function goOnline() { if (NET.off) { NET.off = false; netBar(); } }
+
+async function syncNow(full) {
+  const j = await post(Object.assign({ action: 'sync', since: full || !REP ? 0 : REP.meta.v }, cred()));
+  if (!j.ok) throw new AppError(j.error || 'Грешка');
+  if (full || !REP) REP = HELIOS.emptyDb();
+  mergeDelta(j.delta); await saveLocal();
+}
+function localRun(action, data, extra) {
+  const u = REP.users.find(x => x.id === S.user.id) || S.user;
+  const r = HELIOS.Engine(REP, localEnv).handle(Object.assign({ action }, data, extra || {}), u);
+  return Object.assign({ ok: true }, JSON.parse(JSON.stringify(r)));
+}
+async function serverCall(action, data) {
+  const body = Object.assign({ action }, data, cred());
+  if (cashierMode() && REP) body.since = REP.meta.v;
+  let j;
+  try { j = await post(body); }
+  catch (e) { if (e instanceof AppError) throw e; if (cashierMode()) goOffline(); throw new Error(cashierMode() ? 'Няма интернет — това ще може, когато връзката се върне' : 'Няма връзка със сървъра. Провери интернета и опитай пак.'); }
+  if (cashierMode()) goOnline();
+  if (j.delta && REP) { mergeDelta(j.delta); saveLocal(); }
+  if (!j.ok) throw new Error(j.error || 'Грешка');
+  return j;
+}
+// запис от касата: онлайн — направо на сървъра; без интернет — на касата + в опашката
+async function cashierWrite(action, data) {
+  const cid = newCid(), item = Object.assign({ action, cid, by: S.uid }, data);
+  if (!NET.off) {
+    await flushQueue();
+    if (!NET.off && !NET.queue.length) {
+      let j = null;
+      try { j = await post(Object.assign({}, item, cred(), { since: REP.meta.v })); }
+      catch (e) { if (e instanceof AppError) throw e; goOffline(); }
+      if (j) {
+        goOnline();
+        if (j.delta) { mergeDelta(j.delta); saveLocal(); }
+        if (!j.ok) throw new Error(j.error || 'Грешка');
+        return j;
+      }
+    }
+  }
+  const at = { cid, _d: todayStr(), _t: localEnv.now() }, snap = HELIOS.snapshot(REP);
+  const r = localRun(action, data, at);            // грешка тук = нищо не се записва
+  const ch = HELIOS.diff(REP, snap);
+  Object.assign(item, { _d: at._d, _t: at._t, touch: ch.ids });
+  if (r.talon) item.talon = r.talon;
+  NET.queue.push(item); await saveLocal(); netBar();
+  return r;
+}
+const ACT_BG = { addKasa: 'талон', payKasa: 'плащане на талон', payWasher: 'заплата на мияч', takeWage: 'надник', envTake: 'пари от плик', openShift: 'отваряне на смяна', closeShift: 'затваряне на смяна', login: 'влизане' };
+async function flushQueue() {
+  if (NET.flushing || !NET.queue.length || !REP) return;
+  NET.flushing = true; NET.syncing = true; netBar();
+  let bad = [];
+  try {
+    while (NET.queue.length) {
+      const items = NET.queue.slice(0, 40), touch = [].concat(...items.map(i => i.touch || []));
+      const j = await post(Object.assign({ action: 'batch', items: items.map(i => { const c = Object.assign({}, i); delete c.touch; return c; }), since: REP.meta.v, touch }, cred()));
+      if (!j.ok) throw new AppError(j.error || 'Грешка');
+      goOnline();
+      NET.queue.splice(0, items.length);
+      bad = bad.concat(j.results.filter(x => !x.ok).map(x => ({ what: ACT_BG[x.action] || x.action || 'запис', error: x.error })));
+      mergeDelta(j.delta); NET.sent += items.length;
+      await saveLocal();
+    }
+    if (bad.length) { NET.failed = NET.failed.concat(bad); await syncNow(true); }   // нещо не мина — теглим всичко наново
+  } catch (e) { if (e instanceof AppError) toast(e.message, false); else goOffline(); }
+  finally {
+    NET.flushing = false; NET.syncing = false; netBar();
+    if (NET.sent) setTimeout(() => { NET.sent = 0; netBar(); }, 4000);
+    if (cashierMode()) refreshCashierKpis();
+  }
+}
+async function netTick() {
+  if (!cashierMode() || !REP || NET.flushing) return;
+  if (NET.queue.length) return flushQueue();
+  try { await syncNow(false); goOnline(); refreshCashierKpis(); }
+  catch (e) { if (!(e instanceof AppError)) goOffline(); }
+}
+setInterval(netTick, 30000);
+window.addEventListener('online', netTick);
+window.addEventListener('offline', () => { if (cashierMode()) goOffline(); });
+
+async function api(action, data = {}) {
+  if (cashierMode() && REP) {
+    if (HELIOS.LOCAL_READ.indexOf(action) >= 0) return localRun(action, data);
+    if (HELIOS.OFFLINE_WRITE.indexOf(action) >= 0) return cashierWrite(action, data);
+    if (NET.off) throw new Error('Няма интернет — това ще може, когато връзката се върне');
+  }
+  return serverCall(action, data);
+}
+function netBar() {
+  const el = $('#net'); if (!el) return;
+  if (!S.user || S.user.role !== 'cashier') { el.innerHTML = ''; return; }
+  const n = NET.queue.length, w = x => x === 1 ? 'запис' : 'записа';
+  el.innerHTML = (NET.syncing ? `<div class="net sync">⟳ Изпращам ${n} ${w(n)}…</div>`
+    : NET.off ? `<div class="net off">📵 <span><b>Няма интернет.</b> Работиш нормално — всичко се пази на компютъра${n ? `. Чакат за изпращане: <b>${n}</b>` : ''}.</span></div>`
+    : NET.sent ? `<div class="net done">✓ Изпратено: ${NET.sent} ${w(NET.sent)}. Всичко е наред.</div>` : '')
+    + (NET.failed.length ? `<div class="net off" style="flex-wrap:wrap">⚠ <span style="flex:1"><b>Не минаха ${NET.failed.length} ${w(NET.failed.length)} от времето без интернет:</b> ${NET.failed.map(f => esc(f.what) + ' — ' + esc(f.error)).join('; ')}</span><button class="btn sm sec" id="netOk" style="margin:0">Разбрах</button></div>` : '');
+  if ($('#netOk')) $('#netOk').onclick = () => { NET.failed = []; netBar(); };
+}
+function setKpis(items, four) {
+  const k = $('#kpis'); if (!k) return;
+  k.innerHTML = `<div class="kpis ${four ? 'k4' : ''}">` + items.map(x => `<div class="kpi ${x[2] || ''}"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('') + '</div>';
+}
+function go(tab) {
+  S.tab = tab; clearInterval(timer); if ($('#app')) $('#app').classList.remove('has-side');
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  $('#bar').innerHTML = ''; window.scrollTo(0, 0);
+  ({ new: tabNew, due: tabDue, pay: tabPay, today: tabToday, rep: tabRep, talons: tabTalons, firms: tabFirms, inv: tabInv, set: tabSet })[tab]();
+}
+
+/* ---------- вход ---------- */
+const ROLE = { admin: 'Собственик', cashier: 'Касиер', washer: 'Мияч' };
+// вход: човекът избира своя профил и въвежда своя ПИН
+// вход с потребителско име и парола — никой не вижда кои профили има
+function showLogin() {
+  clearInterval(timer);
+  const last = S.loginMsg ? '' : (load('mw_last') || '');
+  $('#root').innerHTML = `<div class="login"><div class="hero"><small>АВТОМИВКА</small><div class="big">HELIOS</div><span>EXCLUSIVE CARWASH &amp; DETAILING CENTER</span></div>
+    <form class="lbody" id="lf" autocomplete="on">
+      ${S.loginMsg ? `<div style="width:100%;background:rgba(242,194,48,.15);border:1.5px solid var(--teal);border-radius:12px;padding:12px;margin:6px 0 4px;font-size:14px">${esc(S.loginMsg)}</div>` : ''}
+      <h2>Вход</h2>
+      <label class="ll" for="lu">Потребителско име</label>
+      <input class="li" id="lu" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(last)}" placeholder="напр. maria">
+      <label class="ll" for="lp">Парола</label>
+      <div style="position:relative;width:100%"><input class="li" id="lp" name="password" type="password" autocomplete="current-password" placeholder="••••••">
+        <button type="button" id="eye" class="eye" aria-label="Покажи паролата">Покажи</button></div>
+      <label class="rem"><input type="checkbox" id="lr"> Запомни ме на това устройство</label>
+      <button class="btn teal" type="submit" id="lgo" style="width:100%">Вход</button>
+      <div class="muted" style="color:rgba(255,255,255,.5);margin-top:14px;text-align:center">Нямаш профил? Поискай от собственика.</div>
+    </form></div>`;
+  $('#eye').onclick = () => { const p = $('#lp'), show = p.type === 'password'; p.type = show ? 'text' : 'password'; $('#eye').textContent = show ? 'Скрий' : 'Покажи'; };
+  $('#lf').onsubmit = ev => { ev.preventDefault(); doLogin($('#lp').value, $('#lu').value.trim(), $('#lr').checked); };
+  (last ? $('#lp') : $('#lu')).focus();
+}
+function drawDots() { const d = $('#dots'); if (d) d.innerHTML = Array.from({ length: Math.max(4, pinBuf.length) }, (_, i) => `<i class="${i < pinBuf.length ? 'f' : ''}"></i>`).join(''); }
+function padKey(k) {
+  if (k === '⌫') pinBuf = pinBuf.slice(0, -1);
+  else if (k === 'OK') { if (pinBuf) doLogin(pinBuf); return; }
+  else if (pinBuf.length < 8) pinBuf += k;
+  drawDots();
+}
+async function doLogin(pass, login, remember) {
+  login = String(login || '').trim().toLowerCase();
+  S.pin = pass; S.uid = login;
+  if (!login || !pass) { toast('Въведи потребителско име и парола', false); return; }
+  const btn = $('#lgo'); if (btn) btn.disabled = true;
+  try {
+    let j = null, offline = false;
+    try { j = await post({ action: 'login', login, pass, cid: newCid() }); }
+    catch (e) { if (e instanceof AppError) throw e; offline = true; }
+    if (j && !j.ok) throw new Error(j.error || 'Грешка');
+    const h = credHash(login, pass), all = creds();
+    if (offline) {   // без интернет: само касиер, който вече е влизал на тази каса
+      const c = all[login];
+      if (!c) throw new Error('Няма интернет. Без интернет може да влезе само касиер, който вече е влизал на тази каса.');
+      if (c.h !== h) throw new Error('Грешно потребителско име или парола');
+      j = c.boot;
+    } else if (j.user.role === 'cashier') { all[login] = { h, boot: j }; store('hl_creds', JSON.stringify(all)); }
+    Object.assign(S, { user: j.user, prices: j.prices, washers: j.washers, firms: j.firms || [], talonName: j.talonName || 'АВТОМИВКА', address: j.address || '', clientTalon: !!j.clientTalon });
+    if (j.user.role === 'cashier') {
+      await openReplica();
+      if (offline) {
+        if (!REP) throw new Error('Няма интернет, а данните още не са изтеглени на тази каса. Влез веднъж с интернет.');
+        NET.off = true; await cashierWrite('login', {});
+      } else {
+        NET.off = false;
+        if (!REP) $('#root').innerHTML = '<div class="login"><div class="hero"><small>АВТОМИВКА</small><div class="big">HELIOS</div><span>Изтеглям данните на касата…</span></div></div>';
+        try { if (NET.queue.length) await flushQueue(); else await syncNow(!REP); }
+        catch (e) { if (!REP) throw (e instanceof AppError ? e : new Error('Няма връзка със сървъра. Опитай пак.')); NET.off = true; }
+      }
+    } else if (offline) throw new Error('Няма връзка със сървъра. Провери интернета и опитай пак.');
+    store('mw_last', login); S.loginMsg = '';
+    if (remember) { store('mw_pin', pass); store('mw_uid', login); }
+    route();
+  } catch (e) {
+    S.pin = ''; S.user = null; store('mw_pin', null); store('mw_uid', null);
+    if (!$('#lf')) showLogin(); else { $('#lp').value = ''; $('#lp').focus(); }
+    toast(e.message, false);
+  } finally { if ($('#lgo')) $('#lgo').disabled = false; }
+}
+function logout() { store('mw_pin', null); store('mw_uid', null); S.pin = ''; S.uid = ''; S.user = null; showLogin(); }
+function route() {
+  const r = S.user.role;
+  Object.assign(F, { plate: '', svcs: [], washer: '', pay: null, autoFirm: false });
+  if (r === 'cashier') { shell('Каса · ' + bgDate(todayStr()), [['new', 'Нова кола', 'plus'], ['due', 'Плащане', 'cash'], ['pay', 'Заплати', 'users'], ['today', 'Днес', 'list']]); refreshCashierKpis().then(() => go('new')); }
+  else if (r === 'washer') { shell('Мияч · ' + bgDate(todayStr()), null); washerScreen(); }
+  else { S.repDate = todayStr(); shell('Отчети и контрол', [['rep', 'Отчет', 'chart'], ['talons', 'Талони', 'ticket'], ['firms', 'Фирми', 'building'], ['inv', 'Фактури', 'file'], ['set', 'Настройки', 'gear']]); go('rep'); }
+}
+
+/* ---------- ТАЛОН ---------- */
+function talonHtml(j, copy) {
+  const pay = j.pay === 'firm' ? 'Фирма: ' + esc(j.firm) : PAYL[j.pay];
+  return `<div class="talon"><div class="tc"><b>${esc(S.talonName)}</b></div>${S.clientTalon ? '<div class="tlab">ЗА КОЛАТА</div>' : ''}${copy ? '<div class="tc">*** КОПИЕ ***</div>' : ''}
+    <div class="tc tbig">ТАЛОН № ${esc(j.talon)}</div><div class="tc">${esc(bgDate(j.date))} ${esc(j.time)}</div><hr>
+    <div class="tc tplate">${esc(j.plate)}</div>
+    ${(j.items || [{ name: j.service, price: j.price }]).map(x => `<div class="trow"><span>${esc(x.name)}</span><span>${eur(x.price)}</span></div>`).join('')}
+    ${j.gift ? `<div class="trow"><span>Подарък (карта)</span><span>−${eur(j.gift)}</span></div>` : ''}
+    <div class="trow" style="font-weight:800;font-size:16px"><span>${j.pay ? 'ОБЩО' : 'ЗА ПЛАЩАНЕ'}</span><span>${eur(j.price)}</span></div>
+    <div class="trow"><span>Плащане</span><span>${j.pay ? pay : 'при взимане'}</span></div>
+    <div class="trow"><span>Мияч</span><span>${esc(j.washer)}</span></div>
+    <div class="trow"><span>Касиер</span><span>${esc(j.cashier)}</span></div><hr>
+    ${j.loy ? `<div class="tc" style="font-weight:800;margin-bottom:2px">${j.gift ? 'ТОВА ИЗМИВАНЕ Е ПОДАРЪК!' : j.loy.stamps >= j.loy.every - 1 ? 'СЛЕДВАЩОТО ИЗМИВАНЕ Е ПОДАРЪК!' : `КАРТА HELIOS: ${j.loy.stamps} от ${j.loy.every}`}</div>
+    ${!j.gift && j.loy.stamps < j.loy.every - 1 ? `<div class="tc" style="font-size:11px;margin-bottom:4px">Всяко ${j.loy.every}-о измиване е подарък</div>` : ''}<hr>` : ''}
+    <div class="tc">Сложете талона зад чистачката</div></div>`;
+}
+// талон за клиента — печата се само ако собственикът го е включил в Настройки
+function clientTalonHtml(j) {
+  const pay = j.pay === 'firm' ? 'Фирма: ' + esc(j.firm) : PAYL[j.pay];
+  return `<div class="talon"><div class="tc"><b>${esc(S.talonName)}</b></div><div class="tlab">ЗА КЛИЕНТА</div>
+    <div class="tc tbig">ТАЛОН № ${esc(j.talon)}</div><div class="tc">${esc(bgDate(j.date))} ${esc(j.time)}</div><hr>
+    <div class="tc" style="font-weight:800;font-size:18px;letter-spacing:1px">${esc(j.plate)}</div>
+    ${(j.items || [{ name: j.service, price: j.price }]).map(x => `<div class="trow"><span>${esc(x.name)}</span><span>${eur(x.price)}</span></div>`).join('')}
+    ${j.gift ? `<div class="trow"><span>Подарък (карта)</span><span>−${eur(j.gift)}</span></div>` : ''}
+    <div class="trow" style="font-weight:800;font-size:16px"><span>${j.pay ? 'ОБЩО' : 'ЗА ПЛАЩАНЕ'}</span><span>${eur(j.price)}</span></div>
+    <div class="trow"><span>Плащане</span><span>${j.pay ? pay : 'при взимане'}</span></div><hr>
+    ${j.loy ? `<div class="tc" style="margin-bottom:4px">${j.gift ? '🎁 Това измиване беше подарък!' : j.loy.stamps >= j.loy.every - 1 ? '🎁 Следващото измиване е подарък!' : `Карта за лоялност: ${j.loy.stamps} от ${j.loy.every}`}</div>` : ''}
+    <div class="tc"><b>Благодарим Ви!</b></div>${S.address ? `<div class="tc" style="font-size:11px">${esc(S.address)}</div>` : ''}<div class="tc" style="font-size:11px">Това не е фискален бон</div></div>`;
+}
+function bothTalons(j, copy) {
+  return talonHtml(j, copy) + (S.clientTalon && !copy ? '<div style="break-before:page;page-break-before:always;height:14px"></div>' + clientTalonHtml(j) : '');
+}
+function printTalon(j, copy) {
+  $('#printArea').innerHTML = bothTalons(j, copy);
+  if (AUTO_PRINT) setTimeout(() => window.print(), 150);
+}
+function showTalon(j) {
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Талон">${bothTalons(j, false)}
+    <div style="display:flex;gap:8px"><button class="btn sec" id="tCopy">Печатай копие</button><button class="btn teal" id="tOk">Готово</button></div></div>`;
+  document.body.appendChild(o);
+  $('#tCopy').onclick = () => { printTalon(j, true); if (!AUTO_PRINT) toast('В демото няма принтер'); };
+  $('#tOk').onclick = () => o.remove();
+}
+
+/* ---------- КАСИЕР ---------- */
+const F = { plate: '', svcs: [], washer: '', pay: 'cash', autoFirm: false };
+async function refreshCashierKpis() {
+  try {
+    const j = await api('myDay'); S.day = j; if (j.firms) S.firms = j.firms;
+    if ('clientTalon' in j) { S.clientTalon = !!j.clientTalon; S.talonName = j.talonName || S.talonName; S.address = j.address || ''; S.user.canAddWashers = !!j.canAddWashers; if (j.washers) S.washers = j.washers; if (j.prices) S.prices = j.prices; }
+    const tb = document.querySelector('[data-tab="due"]'); if (tb) { const n = (j.unpaid || []).length; tb.innerHTML = ic('cash') + 'Плащане' + (n ? ` <span class="tabn">${n}</span>` : ''); }
+    setKpis(j.shift ? [[j.items.filter(k => !k.void).length, 'коли днес'], [eur(j.shift.expected), 'в касата', 'good'], [eur(j.envTotal), 'в пликовете']]
+      : [['—', 'смяната е затворена', 'warn'], [eur(j.lastFloat), 'оставено в касата'], [eur(j.envTotal), 'в пликовете']]);
+  } catch (e) {}
+}
+function firmFor(plate) { const n = normPlate(plate); return n.length >= 4 ? S.firms.find(f => f.plates.indexOf(n) >= 0) : null; }
+function priceOf(p) { const f = F.pay === 'firm' ? firmFor(F.plate) : null; return f && f.prices[p.name] > 0 ? f.prices[p.name] : p.price; }
+// екранна клавиатура: режим „BG“ (подрежда номера) или „Чужд / транзитен“ (свободно писане, латиница)
+function drawPkb() {
+  const pl = $('#plate'), bg = F.kb !== 'free';
+  $('.plate-eu').innerHTML = bg ? '<i></i>BG' : '<i></i>EU';
+  $('#pkb').innerHTML = `<div class="seg" style="grid-template-columns:1fr 1fr;margin-bottom:8px" id="kbm"><button data-m="bg" class="${bg ? 'on' : ''}">BG номер</button><button data-m="free" class="${bg ? '' : 'on'}">Чужд / транзитен</button></div>` + (bg
+    ? `<div class="reg">${['В', 'ВТ', 'СА', 'СВ', 'С', 'А', 'Н', 'ТХ', 'Е', 'Р'].map(r => `<button data-rg="${r}">${r}</button>`).join('')}</div>
+      <div class="keys">${'1234567890'.split('').map(d => `<button class="dig" data-k="${d}">${d}</button>`).join('')}<button class="wide2" data-k="⌫" aria-label="Изтрий">⌫</button>
+        ${'АВЕКМНОРСТУХ'.split('').map(l => `<button data-k="${l}">${l}</button>`).join('')}<button class="clr" data-k="CLR" style="grid-column:span 12;height:44px">Изчисти номера</button></div>`
+    : `<div class="keys" style="grid-template-columns:repeat(10,minmax(0,1fr))">${'1234567890QWERTYUIOPASDFGHJKL'.split('').map(d => `<button class="${/\d/.test(d) ? 'dig' : ''}" data-k="${d}">${d}</button>`).join('')}<button class="wide2" data-k="⌫" aria-label="Изтрий" style="grid-column:span 1">⌫</button>
+        ${'ZXCVBNM'.split('').map(l => `<button data-k="${l}">${l}</button>`).join('')}<button data-k="-">–</button><button class="clr" data-k=" " style="grid-column:span 2">интервал</button>
+        <button class="clr" data-k="CLR" style="grid-column:span 10;height:44px">Изчисти номера</button></div>
+      <div class="muted" style="margin-top:6px">Пишете номера точно както е на табелата, с интервалите. Напр. „M AB 1234“ (Германия), „B 123 ABC“ (Румъния). Транзитни — както са на табелата.</div>`);
+  const set = v => { F.plate = F.kb === 'free' ? v.toUpperCase() : formatPlate(v); pl.value = F.plate; autoPay(); upd(); checkLoy(); };
+  document.querySelectorAll('#pkb [data-k]').forEach(b => b.onclick = () => {
+    const k = b.dataset.k, raw = F.kb === 'free' ? F.plate : F.plate.replace(/\s/g, '');
+    set(k === '⌫' ? raw.slice(0, -1) : k === 'CLR' ? '' : raw + k);
+  });
+  document.querySelectorAll('#pkb [data-rg]').forEach(b => b.onclick = () => set(b.dataset.rg));
+  document.querySelectorAll('#kbm button').forEach(b => b.onclick = () => { F.kb = b.dataset.m; set(''); drawPkb(); });
+}
+// „В1234АВ“ → „В 1234 АВ“ (подрежда номера, докато се пише)
+function formatPlate(v) {
+  const s = String(v || '').toUpperCase().replace(/\s/g, ''), m = s.match(/^([A-ZА-Я]{0,2})(\d{0,4})([A-ZА-Я]{0,2})(.*)$/);
+  if (!m || m[4]) return s;
+  return [m[1], m[2], m[3]].filter(Boolean).join(' ');
+}
+function prettyPlate(p) {
+  if (/\s/.test(p)) return p;
+  const m = String(p).match(/^([A-ZА-Я]{1,2})(\d{4})([A-ZА-Я]{1,2})$/); return m ? m[1] + ' ' + m[2] + ' ' + m[3] : p;
+}
+/* ---------- СМЯНА: отваряне, предаване (междинен отчет), приключване на деня ---------- */
+function openShiftScreen() {
+  const j = S.day || {};
+  $('#app').classList.remove('has-side'); $('#bar').innerHTML = '';
+  $('#app').innerHTML = `<div class="card" style="max-width:520px;margin:10px auto"><h2 style="font-size:20px">Приеми касата и отвори смяна</h2>
+    <p class="muted" style="margin-top:0">Преброй парите в касата, преди да издадеш първия талон.</p>
+    <div class="row"><span>${j.lastBy ? 'Оставено от ' + esc(j.lastBy) : 'Оставено от предишната смяна'}</span><b class="tnum">${eur(j.lastFloat || 0)}</b></div>
+    <label class="l" for="osc">Преброих в касата</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="osc" inputmode="decimal" value="${(j.lastFloat || 0).toFixed(2)}"><b>€</b></div>
+    <div id="oscDiff" style="margin-top:8px"></div>
+    <button class="btn teal" id="osGo" style="font-size:18px">Приемам касата · Отвори смяна</button></div>`;
+  const diff = () => { const v = +($('#osc').value.replace(',', '.')) || 0, d = Math.round((v - (j.lastFloat || 0)) * 100) / 100;
+    $('#oscDiff').innerHTML = Math.abs(d) < 0.005 ? '<span class="badge ok">✓ Съвпада с оставеното</span>' : `<span class="badge bad">Разлика ${d > 0 ? '+' : ''}${eur(d)} спрямо оставеното — ще се види при собственика</span>`; };
+  $('#osc').oninput = diff; diff();
+  $('#osGo').onclick = async () => {
+    try { const r = await api('openShift', { cash: $('#osc').value }); toast('Смяна № ' + r.no + ' е отворена'); await refreshCashierKpis(); go('new'); }
+    catch (e) { toast(e.message, false); }
+  };
+}
+// взимане на пари от неприбран плик (напр. за заплати) — парите влизат в касата и излизат в отчета
+async function takeModal(after) {
+  let st; try { st = await api('shiftState'); } catch (e) { toast(e.message, false); return; }
+  const envs = st.envelopes.filter(e => e.left > 0.004);
+  if (!envs.length) { toast('Няма пликове с пари — обади се на собственика', false); return; }
+  const sel = { id: envs[0].id };
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Взимане от плик"><h2 style="font-size:18px">Взех пари от плик</h2>
+    <p class="muted" style="margin-top:0">Парите влизат в касата. Записва се кой, кога и колко е взел.</p>
+    <div id="envSel">${envs.map(e => `<button class="row" data-e="${esc(e.id)}" style="width:100%;border:2px solid var(--line);border-radius:12px;background:#fff;padding:12px;margin-bottom:8px;cursor:pointer;text-align:left">
+      <span><b>${esc(e.label)}</b><div class="muted">${esc(bgDate(e.date))}</div></span><b class="tnum">${eur(e.left)}</b></button>`).join('')}</div>
+    <label class="l" for="tkA">Колко взех</label><input class="f money" id="tkA" inputmode="decimal" placeholder="0.00">
+    <label class="l" for="tkN">За какво</label><input class="f" id="tkN" value="за заплати">
+    <div style="display:flex;gap:8px"><button class="btn sec" id="tkNo">Отказ</button><button class="btn green" id="tkOk">Потвърди</button></div></div>`;
+  document.body.appendChild(o);
+  const draw = () => document.querySelectorAll('#envSel [data-e]').forEach(b => { b.style.borderColor = b.dataset.e === sel.id ? 'var(--teal)' : 'var(--line)'; b.style.background = b.dataset.e === sel.id ? '#FFFBEB' : '#fff'; });
+  document.querySelectorAll('#envSel [data-e]').forEach(b => b.onclick = () => { sel.id = b.dataset.e; draw(); }); draw();
+  $('#tkNo').onclick = () => o.remove();
+  $('#tkOk').onclick = async () => {
+    try { const r = await api('envTake', { id: sel.id, amount: $('#tkA').value, note: $('#tkN').value }); o.remove(); toast('Записано · в плика остават ' + eur(r.left)); await refreshCashierKpis(); (after || tabToday)(); }
+    catch (e) { toast(e.message, false); }
+  };
+}
+const DENOMS = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1];
+async function closeShiftStart(mode) {
+  mode = mode === 'handover' ? 'handover' : 'day';
+  let st, pr; try { st = await api('shiftState'); pr = await api('payroll'); } catch (e) { toast(e.message, false); return; }
+  if (!st.shift) { toast('Няма отворена смяна', false); return; }
+  let pend = []; try { pend = (await api('report', { date: todayStr() })).noWasher || []; } catch (e) {}
+  const owed = pr.washers.filter(w => w.owed > 0.004), cnt = {};
+  $('#app').classList.remove('has-side'); $('#bar').innerHTML = '';
+  $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto">
+    <div class="card"><h2 style="font-size:20px">${mode === 'handover' ? 'Предаване на смяна' : 'Приключване на деня'} · смяна № ${st.shift.no}</h2>
+      <div class="muted">${mode === 'handover' ? 'Парите остават в касата за следващия касиер. Излиза междинен отчет.' : 'Парите отиват в плик заедно с отчета.'}</div>
+      ${mode === 'day' && S.day && S.day.unpaid && S.day.unpaid.length ? `<div class="card alert" style="margin:12px 0 0;box-shadow:none;background:#FEF2F2"><b>${S.day.unpaid.length} ${S.day.unpaid.length === 1 ? 'кола не е платена' : 'коли не са платени'} (${eur(S.day.unpaid.reduce((a, k) => a + k.price, 0))})</b>
+        <div class="muted">Вземи парите преди да приключиш. Ако останат, ще се виждат и утре в „Плащане“.</div></div>` : ''}
+      ${mode === 'day' && (pend.length || owed.length) ? `<div class="card alert amb" style="margin:12px 0 0;box-shadow:none;background:#FFFBEB"><b>Преди да приключиш деня:</b>
+        ${pend.length ? `<div class="muted">• ${pend.length} ${pend.length === 1 ? 'талон не е започнат' : 'талона не са започнати'} от мияч</div>` : ''}
+        ${owed.map(w => `<div class="muted">• ${esc(w.name)} има да взема ${eur(w.owed)}</div>`).join('')}
+        <div class="muted" style="margin-top:4px">Можеш да приключиш и така — дълговете се пренасят.</div></div>` : ''}</div>
+    <div class="card"><h2>Преброй парите в касата</h2><p class="muted" style="margin-top:-4px">Въведи колко броя от всяка банкнота и монета.</p>
+      ${DENOMS.map(d => `<div class="row" style="padding:6px 0"><b style="width:80px">${d >= 1 ? d + ' €' : Math.round(d * 100) + ' ст.'}</b>
+        <span style="display:flex;align-items:center;gap:6px"><button class="btn sm sec" data-dn="${d}" data-op="-1" style="width:44px;height:44px;font-size:20px">−</button>
+        <input class="f" data-dc="${d}" inputmode="numeric" value="" placeholder="0" style="width:70px;text-align:center;padding:10px">
+        <button class="btn sm sec" data-dn="${d}" data-op="1" style="width:44px;height:44px;font-size:20px">+</button></span>
+        <span class="tnum" data-ds="${d}" style="width:80px;text-align:right">0.00 €</span></div>`).join('')}
+      <div class="row" style="font-size:20px;border:0"><b>Преброено</b><b class="tnum" id="csum">0.00 €</b></div>
+      <button class="btn teal" id="cNext" style="font-size:18px">Продължи</button>
+      <button class="btn sec" id="cBack">Отказ</button></div></div>`;
+  const calc = () => { let t = 0; DENOMS.forEach(d => { const n = Math.max(0, parseInt(cnt[d] || 0) || 0); t += n * d; $(`[data-ds="${d}"]`).textContent = eur(n * d); }); t = Math.round(t * 100) / 100; $('#csum').textContent = eur(t); return t; };
+  document.querySelectorAll('[data-dc]').forEach(i => i.oninput = () => { cnt[i.dataset.dc] = i.value; calc(); });
+  document.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => { const d = b.dataset.dn, n = Math.max(0, (parseInt(cnt[d] || 0) || 0) + +b.dataset.op); cnt[d] = n; $(`[data-dc="${d}"]`).value = n || ''; calc(); });
+  $('#cBack').onclick = () => go('today');
+  $('#cNext').onclick = () => closeShiftStep2(st, calc(), mode);
+}
+function closeShiftStep2(st, counted, mode) {
+  const exp = st.shift.expected, diff = Math.round((counted - exp) * 100) / 100, left0 = Math.min(counted, 50), hand = mode === 'handover';
+  $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto"><div class="card"><h2 style="font-size:20px">Резултат</h2>
+    <div class="row"><span>Трябва да има</span><b class="tnum">${eur(exp)}</b></div>
+    <div class="row"><span>Преброено</span><b class="tnum">${eur(counted)}</b></div>
+    <div class="row" style="font-size:18px"><b>Разлика</b><b class="tnum" style="color:${Math.abs(diff) < 0.005 ? 'var(--green)' : 'var(--red)'}">${Math.abs(diff) < 0.005 ? '✓ точно' : (diff > 0 ? '+' : '') + eur(diff)}</b></div>
+    ${Math.abs(diff) >= 0.005 ? `<p class="muted">${diff < 0 ? 'Липсват пари.' : 'Има повече пари.'} Разликата се записва и собственикът я вижда. Ако си сгрешил броенето, върни се и преброй пак.</p>` : ''}
+    ${hand ? `<div class="row" style="font-size:22px;margin-top:6px;border:0"><b>Предавам в касата</b><b class="tnum">${eur(counted)}</b></div>`
+      : `<label class="l" for="left">Оставям в касата за ресто</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="left" inputmode="decimal" value="${left0.toFixed(2)}"><b>€</b></div>
+    <div class="row" style="font-size:22px;margin-top:10px;border:0"><b>В плика</b><b class="tnum" id="env">${eur(counted - left0)}</b></div>`}
+    <button class="btn teal" id="cDo" style="font-size:18px">${ic('print', 20)} ${hand ? 'Предай и печатай междинен отчет' : 'Приключи деня и печатай отчета'}</button>
+    <button class="btn sec" id="cRe">Преброй пак</button></div></div>`;
+  if ($('#left')) $('#left').oninput = () => { const l = +($('#left').value.replace(',', '.')) || 0; $('#env').textContent = eur(counted - l); };
+  $('#cRe').onclick = () => closeShiftStart(mode);
+  $('#cDo').onclick = async () => {
+    try {
+      const r = await api('closeShift', { mode, counted, leftFloat: hand ? counted : $('#left').value });
+      const s = r.shift; $('#printArea').innerHTML = shiftSlipHtml(s); if (AUTO_PRINT) setTimeout(() => window.print(), 150);
+      if (hand) {
+        S.loginMsg = `Смяна № ${s.no} е предадена от ${S.user.name}. В касата: ${eur(s.counted)}. Следващият касиер да влезе.`;
+        S.lastSlip = s; setTimeout(logout, AUTO_PRINT ? 1500 : 200); return;
+      }
+      await refreshCashierKpis();
+      $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto"><div class="card" style="text-align:center"><div style="font-size:40px">✓</div><h2 style="font-size:20px">Денят е приключен · смяна № ${s.no}</h2>
+        <p class="muted">Сложи <b>${eur(s.envelope)}</b> и отчета в плика.${AUTO_PRINT ? '' : ' (В демото отчетът не се печата.)'}</p></div>
+        <div class="card">${shiftSlipHtml(s)}</div><button class="btn sec" id="cOut">Изход</button></div>`;
+      $('#cOut').onclick = logout;
+    } catch (e) { toast(e.message, false); }
+  };
+}
+function shiftSlipHtml(s) {
+  const r = (a, b, bold) => `<div class="trow"${bold ? ' style="font-weight:800"' : ''}><span>${a}</span><span>${b}</span></div>`;
+  const e = n => (Math.round(n * 100) / 100).toFixed(2), hand = s.mode === 'handover';
+  return `<div class="talon"><div class="tc"><b>${esc(S.talonName)}</b></div><div class="tc tbig" style="font-size:17px">${hand ? 'МЕЖДИНЕН ОТЧЕТ' : 'ОТЧЕТ ЗА ДЕНЯ'}</div><div class="tc">Смяна № ${s.no}</div>
+    <div class="tc">${esc(bgDate(s.date))} · ${esc(s.openT)} – ${esc(s.closeT || '')}</div>
+    <div class="tc">Касиер: ${esc([...new Set([s.openBy].concat(Object.keys(s.byCashier || {})).concat([s.closeBy]).filter(Boolean))].join(', '))}</div><hr>
+    ${r('Талони', s.talons + ' бр.')}${s.voided ? r('Анулирани', s.voided + ' бр.') : ''}${r('Оборот общо', e(s.revenue))}${r('&nbsp;в брой', e(s.cash))}${r('&nbsp;карта', e(s.card))}${r('&nbsp;фирми', e(s.firm))}${s.unpaidN ? r('Чакат плащане', s.unpaidN + ' бр. · ' + e(s.unpaidSum)) : ''}<hr>
+    ${r('Начална сума', e(s.openCash))}${r('+ В брой', e(s.cash))}${(s.takes || []).map(t => r('+ ' + esc(t.env.replace('Плик смяна', 'Плик')), e(t.amount))).join('')}${(s.tillByWasher || []).map(w => r((w.cashier ? '− Надник ' : '− Заплата ') + esc(w.name), e(w.amount))).join('')}
+    ${r('ТРЯБВА ДА ИМА', e(s.expected), 1)}${r('ПРЕБРОЕНО', e(s.counted), 1)}${r('РАЗЛИКА', (s.diff > 0 ? '+' : '') + e(s.diff), 1)}<hr>
+    ${hand ? `<div class="tc" style="font-weight:800;font-size:15px;border:1.5px solid #000;border-radius:4px;margin:4px 0">ПРЕДАДЕНИ В КАСАТА: ${e(s.counted)} €</div><div style="margin-top:12px">Предал: ${esc(s.closeBy)} ..........</div><div style="margin-top:12px">Приел: ...................</div>`
+      : `<div class="tc" style="font-weight:800;font-size:16px;border:1.5px solid #000;border-radius:4px;margin:4px 0">В ПЛИКА: ${e(s.envelope)} €</div>${r('Остава за ресто', e(s.leftFloat))}<hr>
+    <div style="margin-top:12px">Касиер: ..................</div><div style="margin-top:12px">Приел: ...................</div>`}</div>`;
+}
+
+function tabNew() {
+  if (S.day && !S.day.shift) return openShiftScreen();
+  const counts = {}; (S.day ? S.day.items : []).filter(k => !k.void).forEach(k => counts[k.washer] = (counts[k.washer] || 0) + 1);
+  $('#app').classList.add('has-side');
+  $('#app').innerHTML = `<div id="lastT"></div><div class="cgrid"><div class="cmain"><div class="cplate">
+    <div class="sec-t">Регистрационен номер</div>
+    <div class="plate-box"><div class="plate-eu"><i></i>BG</div><input id="plate" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="СА 1234 ВХ" value="${esc(F.plate)}" aria-label="Регистрационен номер"></div>
+    <div class="pkb" id="pkb"></div>
+    <div class="sugg" id="sugg"></div><div id="firmInfo" style="margin-top:6px"></div><div id="loy" style="margin-top:8px"></div></div><div class="cpick">
+    <div class="sec-t">Услуги</div>
+    <div class="tiles">${S.prices.map((p, i) => `<button class="tile" style="--c:${COLORS[i % COLORS.length]}" data-s="${esc(p.name)}" aria-pressed="false">
+      <span class="ico">${ic(svcIcon(p.name))}</span><span><div class="nm">${esc(p.name)}</div><div class="pr" data-pr>${eur(p.price)}</div></span></button>`).join('')}</div>
+    <div class="sec-t">Кой мие</div>
+    <div class="tiles">${S.washers.map((w, i) => `<button class="tile" style="--c:${COLORS[(i + 2) % COLORS.length]}" data-w="${esc(w)}" aria-pressed="false">
+      <span class="av">${esc(initials(w))}</span><span><div class="nm">${esc(w)}</div><div class="muted">${counts[w] || 0} коли днес</div></span></button>`).join('')}</div>
+    </div></div>
+    <aside class="cside"><div class="side-tot"><small>Сума по талона</small><b class="big" id="total2">0.00 €</b>
+      <div id="sumList" style="font-size:14px;opacity:.85;margin:-4px 0 14px"></div>
+      <button class="go" id="save2">${ic('print', 22)} Печат</button></div>
+      <div class="sec-t">Чакат плащане</div><div id="recent"></div></aside></div>`;
+  $('#bar').innerHTML = `<div class="actbar"><div class="actbar-in"><div class="tot"><small>Общо</small><b id="total">0.00 €</b></div>
+    <button class="go" id="save">${ic('print', 20)} Печат</button></div></div>`;
+  const pl = $('#plate');
+  pl.oninput = () => { F.plate = pl.value.toUpperCase(); autoPay(); upd(); checkLoy(); };
+  document.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { const s = b.dataset.s, i = F.svcs.indexOf(s); i < 0 ? F.svcs.push(s) : F.svcs.splice(i, 1); upd(); });
+  document.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { F.washer = F.washer === b.dataset.w ? '' : b.dataset.w; upd(); });
+  $('#save').onclick = saveTalon; $('#save2').onclick = saveTalon;
+  pl.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); saveTalon(); } };
+  // екранна клавиатура за номера (касата с тъчскрийн)
+  if (window.innerWidth >= 1000) pl.setAttribute('inputmode', 'none');
+  drawPkb();
+  dueList($('#recent'), tabNew);
+  autoPay(); upd();
+  if (window.innerWidth >= 1000) pl.focus();
+}
+// Enter от всяко място в касата (освен в поле за писане) = Печат
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || S.tab !== 'new' || !S.user || S.user.role !== 'cashier' || document.querySelector('.modal')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+  e.preventDefault(); saveTalon();
+});
+function autoPay() {
+  const f = firmFor(F.plate);
+  F.pay = f ? 'firm' : null; F.autoFirm = !!f;
+}
+function upd() {
+  const n = normPlate(F.plate), f = firmFor(F.plate), seen = {}, list = [];
+  S.firms.forEach(fm => fm.plates.forEach(p => list.push({ p, firm: fm.name })));
+  (S.day ? S.day.items : []).forEach(k => list.push({ p: k.plate }));
+  const sug = list.filter(x => { const k = normPlate(x.p); if (seen[k]) return false; seen[k] = 1; return n.length >= 1 && k.indexOf(n) >= 0 && k !== n; }).slice(0, 8);
+  $('#sugg').innerHTML = sug.map(x => `<button data-p="${esc(x.p)}">${esc(prettyPlate(x.p))}${x.firm ? '<em>фирма</em>' : ''}</button>`).join('');
+  document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { F.plate = prettyPlate(b.dataset.p); $('#plate').value = F.plate; autoPay(); upd(); checkLoy(); });
+  const due = n.length >= 3 ? ((S.day && S.day.unpaid) || []).filter(k => k.np === n) : [];
+  $('#firmInfo').innerHTML = (f ? `<span class="badge warn">${ic('building', 14)} ${esc(f.name)} · фирмени цени</span>` : '') +
+    due.map(k => `<div class="duehit"><span>🔔 Тази кола чака плащане: <b>талон № ${esc(k.talon)} · ${eur(k.price)}</b></span><button class="btn green sm" data-charge="${esc(k.id)}">Плати</button></div>`).join('');
+  document.querySelectorAll('#firmInfo [data-charge]').forEach(b => b.onclick = () => chargeModal(due.find(k => k.id === b.dataset.charge), tabNew));
+  document.querySelectorAll('[data-s]').forEach(b => {
+    const p = S.prices.find(x => x.name === b.dataset.s), on = F.svcs.indexOf(p.name) >= 0;
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.querySelector('[data-pr]').textContent = eur(priceOf(p));
+  });
+  document.querySelectorAll('[data-w]').forEach(b => { const on = F.washer === b.dataset.w; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  drawLoy();
+  const gift = giftNow(), tot = eur(S.prices.filter(p => F.svcs.indexOf(p.name) >= 0).reduce((s, p) => s + priceOf(p), 0) - gift);
+  $('#total').textContent = tot; if ($('#total2')) $('#total2').textContent = tot;
+  if ($('#sumList')) $('#sumList').innerHTML = [F.plate ? `<div><b>${esc(F.plate)}</b></div>` : '', ...S.prices.filter(p => F.svcs.indexOf(p.name) >= 0).map(p => `<div style="display:flex;justify-content:space-between"><span>${esc(p.name)}</span><span class="tnum">${eur(priceOf(p))}</span></div>`),
+    gift ? `<div style="display:flex;justify-content:space-between;color:#FDE68A"><span>🎁 Подарък</span><span class="tnum">−${eur(gift)}</span></div>` : '',
+    F.washer ? `<div style="margin-top:4px">Мияч: <b>${esc(F.washer)}</b></div>` : '', `<div>${PAYL[F.pay]}</div>`].join('');
+}
+// карта за лоялност: брои посещенията по номер; всяко N-то е подарък (до определена стойност)
+let loyTimer = null;
+function checkLoy() {
+  clearTimeout(loyTimer); F.loy = null; F.useGift = false; drawLoy();
+  if (normPlate(F.plate).length < 4) return;
+  const want = F.plate;
+  loyTimer = setTimeout(async () => {
+    try { const r = await api('loyalty', { plate: want }); if (want !== F.plate) return; F.loy = r.on ? r : null; F.useGift = !!(r.on && r.freeNow); drawLoy(); upd(); } catch (e) {}
+  }, 250);
+}
+function giftNow() {
+  const L = F.loy; if (!L || !L.freeNow || !F.useGift || F.pay === 'firm') return 0;
+  const gross = S.prices.filter(p => F.svcs.indexOf(p.name) >= 0).reduce((s, p) => s + priceOf(p), 0);
+  return Math.min(L.maxValue, gross);
+}
+function drawLoy() {
+  const el = $('#loy'); if (!el) return;
+  const L = F.loy;
+  if (!L || F.pay === 'firm') { el.innerHTML = ''; return; }
+  if (L.freeNow) {
+    el.innerHTML = `<label style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#FEF3C7,#FDE68A);border:2px solid var(--teal);border-radius:14px;padding:12px 14px;cursor:pointer">
+      <span style="font-size:26px">🎁</span><span style="flex:1"><b>${L.every}-о измиване — подарък!</b><div class="muted" style="color:#78350F">До ${eur(L.maxValue)} безплатно. Допълнителните услуги се доплащат.</div></span>
+      <input type="checkbox" class="sw" id="useGift" ${F.useGift ? 'checked' : ''} aria-label="Приложи подаръка"></label>`;
+    $('#useGift').onchange = e => { F.useGift = e.target.checked; upd(); };
+  } else {
+    const left = L.every - 1 - L.stamps;
+    el.innerHTML = `<span class="badge blue">🎁 Карта: ${L.stamps} от ${L.every} · още ${left} ${left === 1 ? 'измиване' : 'измивания'} до подарък</span>`;
+  }
+}
+async function saveTalon() {
+  const b = $('#save'), b2 = $('#save2');
+  if (b.disabled) return;
+  if (normPlate(F.plate).length < 3) { toast('Въведи регистрационния номер', false); $('#plate').focus(); return; }
+  if (!F.svcs.length) { toast('Избери поне една услуга', false); return; }
+  if (!F.washer) { toast('Избери кой мие колата', false); return; }
+  b.disabled = true; if (b2) b2.disabled = true;
+  try {
+    const j = await api('addKasa', { plate: F.plate, services: F.svcs, washer: F.washer, pay: F.pay, useGift: !!giftNow() });
+    printTalon(j, false);
+    Object.assign(F, { plate: '', svcs: [], washer: '', pay: null, autoFirm: false, kb: 'bg', loy: null, useGift: false });
+    await refreshCashierKpis(); tabNew(); window.scrollTo(0, 0);
+    $('#lastT').innerHTML = `<div class="last">${ic('check', 22).replace('currentColor', '#16A34A')}<div><b>Талон № ${esc(j.talon)} · ${esc(j.plate)}</b>
+      <div class="muted">${eur(j.price)}${j.pay ? '' : ' · плаща при взимане'} · ${esc(j.washer)}${AUTO_PRINT ? ' · отпечатан' : ' · в демото не се печата'}</div></div>
+      <button class="btn sm sec" style="margin-left:auto" id="seeT">Виж</button></div>`;
+    $('#seeT').onclick = () => showTalon(j);
+  } catch (e) { toast(e.message, false); b.disabled = false; if (b2) b2.disabled = false; }
+}
+// талони, които чакат плащане — клиентът плаща, когато си вземе колата
+function dueList(el, back) {
+  const L = (S.day && S.day.unpaid) || [];
+  el.innerHTML = L.length ? L.map(k => `<div class="card duec"><div style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0"><span class="pl">${esc(k.plate)}</span><div class="muted">№${esc(k.talon)} · ${k.date !== todayStr() ? esc(bgDate(k.date)) + ' ' : ''}${esc(k.time)} · ${esc(k.washer)}</div>
+      <div class="muted" style="font-size:13px">${esc(k.service)}</div>
+      <div style="margin-top:4px">${k.washed ? '<span class="badge ok">мие се / готова</span>' : '<span class="badge gray">чака мияч</span>'}${k.gift ? ' <span class="badge warn">🎁 подарък</span>' : ''}</div></div>
+      <div style="text-align:right"><div class="money" style="font-size:22px">${eur(k.price)}</div><button class="btn green sm" data-charge="${esc(k.id)}" style="margin-top:6px;min-width:96px">Плати</button></div></div></div>`).join('')
+    : '<div class="card"><div class="empty">Няма коли, които чакат плащане.</div></div>';
+  el.querySelectorAll('[data-charge]').forEach(b => b.onclick = () => chargeModal(L.find(k => k.id === b.dataset.charge), back));
+}
+async function tabDue() {
+  if (S.day && !S.day.shift) return openShiftScreen();
+  await refreshCashierKpis();
+  $('#app').innerHTML = `<div class="sec-t">Чакат плащане · ${((S.day && S.day.unpaid) || []).length}</div><div id="dueL"></div>`;
+  dueList($('#dueL'), tabDue);
+}
+function chargeModal(k, back) {
+  if (!k) return;
+  const st = { pay: '', got: '' };
+  const o = document.createElement('div'); o.className = 'modal';
+  const draw = () => {
+    const got = +String(st.got).replace(',', '.') || 0, ch = Math.round((got - k.price) * 100) / 100;
+    o.innerHTML = `<div class="card" role="dialog" aria-label="Плащане на талон"><h2 style="font-size:18px">Плащане · талон № ${esc(k.talon)}</h2>
+      <div class="pl" style="font-size:22px;margin:4px 0">${esc(k.plate)}</div>
+      ${(k.items || []).map(x => `<div class="row" style="padding:4px 0"><span>${esc(x.name)}</span><span class="tnum">${eur(x.price)}</span></div>`).join('')}
+      ${k.gift ? `<div class="row" style="padding:4px 0;color:#92400E"><span>🎁 Подарък (карта)</span><span class="tnum">−${eur(k.gift)}</span></div>` : ''}
+      <div class="row" style="border:0;font-size:22px"><b>За плащане</b><b class="tnum">${eur(k.price)}</b></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+        <button class="btn ${st.pay === 'cash' ? 'green' : 'sec'}" data-pm="cash" style="margin:0;height:64px;font-size:19px">${ic('cash', 22)} В брой</button>
+        <button class="btn ${st.pay === 'card' ? 'green' : 'sec'}" data-pm="card" style="margin:0;height:64px;font-size:19px">💳 Карта</button></div>
+      ${st.pay === 'cash' ? `<label class="l" for="cgGot">Клиентът даде (за ресто)</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${[['точно', k.price], ['20 €', 20], ['50 €', 50], ['100 €', 100]].filter(x => x[1] >= k.price).map(x => `<button class="btn sm sec" data-got="${x[1]}" style="margin:0">${x[0]}</button>`).join('')}</div>
+        <input class="f money" id="cgGot" inputmode="decimal" value="${esc(st.got)}" placeholder="не е задължително">
+        ${got > 0 ? (ch >= 0 ? `<div class="row" style="border:0;font-size:22px;color:var(--green)"><b>Ресто</b><b class="tnum">${eur(ch)}</b></div>` : '<span class="badge bad">По-малко от сумата</span>') : ''}` : ''}
+      <div style="display:flex;gap:8px"><button class="btn sec" id="cgNo">Отказ</button><button class="btn green" id="cgOk" ${st.pay ? '' : 'disabled'}>Платено</button></div></div>`;
+    o.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { st.pay = b.dataset.pm; draw(); });
+    o.querySelectorAll('[data-got]').forEach(b => b.onclick = () => { st.got = b.dataset.got; draw(); });
+    if ($('#cgGot')) $('#cgGot').oninput = e => { st.got = e.target.value; const c = e.target.selectionStart; draw(); const i = $('#cgGot'); i.focus(); i.setSelectionRange(c, c); };
+    $('#cgNo').onclick = () => o.remove();
+    $('#cgOk').onclick = async () => {
+      const b = $('#cgOk'); b.disabled = true;
+      try { const r = await api('payKasa', { id: k.id, pay: st.pay }); o.remove(); toast(`Талон № ${r.talon} · ${r.plate} — платено ${eur(r.price)} ${r.pay === 'cash' ? 'в брой' : 'с карта'}`);
+        await refreshCashierKpis(); back(); }
+      catch (e) { toast(e.message, false); b.disabled = false; }
+    };
+  };
+  document.body.appendChild(o); draw();
+}
+async function tabPay() {
+  if (S.day && !S.day.shift) return openShiftScreen();
+  $('#app').innerHTML = '<div class="empty">Зареждане…</div>';
+  let j; try { j = await api('payroll'); } catch (e) { $('#app').textContent = e.message; return; }
+  const me = j.me, meH = !me || (me.wage <= 0 && me.owed <= 0.004) ? '' : `<div class="sec-t">Моят надник</div><div class="card"><div style="display:flex;align-items:center;gap:12px">
+      <span class="av" style="--c:#B8860B">${esc(initials(S.user.name))}</span>
+      <div style="flex:1;min-width:0"><b>${esc(S.user.name)}</b><div class="muted">надник ${eur(me.wage)} на ден</div>${me.prev > 0.004 ? '<div><span class="badge warn" style="margin-top:4px">има да взема от преди</span></div>' : ''}</div>
+      <div style="text-align:right"><div class="muted">за взимане</div><div class="money">${eur(me.owed)}</div></div></div>
+      <div style="margin-top:10px;background:var(--soft);border-radius:12px;padding:4px 12px">
+        <div class="row" style="padding:7px 0"><span class="muted">От предишни дни</span><b class="tnum" style="color:${me.prev > 0.004 ? 'var(--amber)' : 'inherit'}">${eur(me.prev)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">+ Надник днес</span><b class="tnum">${eur(me.earnedToday)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">− Взето днес</span><b class="tnum">${eur(me.paidToday)}</b></div></div>
+      ${me.owed > 0.004 ? `<button class="btn teal" id="takeWage">Вземам си надника</button>` : '<div style="margin-top:10px"><span class="badge ok">✓ Взет</span></div>'}</div>`;
+  $('#app').innerHTML = meH + `<div class="sec-t">Заплати на миячите</div>` + j.washers.map((w, i) => `<div class="card"><div style="display:flex;align-items:center;gap:12px">
+      <span class="av" style="--c:${COLORS[(i + 2) % COLORS.length]}">${esc(initials(w.name))}</span>
+      <div style="flex:1;min-width:0"><b>${esc(w.name)}</b>${w.prev > 0.004 ? '<div><span class="badge warn" style="margin-top:4px">има да взема от преди</span></div>' : ''}</div>
+      <div style="text-align:right"><div class="muted">дължимо</div><div class="money">${eur(w.owed)}</div></div></div>
+      <div style="margin-top:10px;background:var(--soft);border-radius:12px;padding:4px 12px">
+        <div class="row" style="padding:7px 0"><span class="muted">От предишни дни</span><b class="tnum" style="color:${w.prev > 0.004 ? 'var(--amber)' : 'inherit'}">${eur(w.prev)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">+ Заработено днес</span><b class="tnum">${eur(w.earnedToday)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">− Платено днес</span><b class="tnum">${eur(w.paidToday)}</b></div></div>
+      ${w.owed > 0.004 ? `<button class="btn green" data-pay="${esc(w.name)}" data-owed="${w.owed}">Плати ${eur(w.owed)}</button>` : '<div style="margin-top:10px"><span class="badge ok">✓ Изплатено</span></div>'}</div>`).join('') +
+    (j.payments.length ? `<div class="sec-t">Изплатени днес</div><div class="card">` + j.payments.map(x =>
+      `<div class="row"><div><b>${esc(x.washer)}</b>${x.kind === 'cashier' ? ' <span class="badge blue">надник касиер</span>' : ''}<div class="muted">${esc(x.time)}${x.kind === 'cashier' ? '' : ' · платил: ' + esc(x.cashier)}</div></div><b class="tnum">${eur(x.amount)}</b></div>`).join('') + '</div>' : '');
+  if (S.user.canAddWashers) {
+    $('#app').insertAdjacentHTML('beforeend', `<button class="btn sec" id="addW" style="margin-top:4px">${ic('plus', 18)} Нов мияч</button>`);
+    $('#addW').onclick = () => userForm(null, true);
+  }
+  document.querySelectorAll('[data-pay]').forEach(b => b.onclick = () => payModal(b.dataset.pay, +b.dataset.owed));
+  if ($('#takeWage')) $('#takeWage').onclick = () => wageModal(me.owed);
+}
+// касиерът си взема дневния надник от касата — веднъж на ден, сумата е зададена от собственика
+function wageModal(owed) {
+  const till = S.day.shift ? S.day.shift.expected : 0;
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Надник"><h2 style="font-size:18px">Моят надник</h2>
+    <div class="muted">За взимане: <b>${eur(owed)}</b> · в касата: <b>${eur(till)}</b></div>
+    <label class="l" for="wgAmt">Сума, която взимам сега</label><input class="f money" id="wgAmt" inputmode="decimal" value="${Math.min(owed, Math.max(till, 0)).toFixed(2)}">
+    <div id="wgRest" style="margin-top:8px"></div>
+    <div style="display:flex;gap:8px"><button class="btn sec" id="wgNo">Отказ</button><button class="btn green" id="wgOk">Взех парите</button></div></div>`;
+  document.body.appendChild(o);
+  $('#wgNo').onclick = () => o.remove();
+  const rest = () => { const a = +($('#wgAmt').value.replace(',', '.')) || 0, r = Math.round((owed - a) * 100) / 100;
+    $('#wgRest').innerHTML = (a > owed + 0.004 ? '<span class="badge bad">Повече от надника</span>'
+      : r > 0.004 ? `<span class="badge warn">Остава да вземеш ${eur(r)} — пренася се за после</span>` : '<span class="badge ok">Взимаш всичко</span>') +
+      (a > till + 0.004 ? `<div style="margin-top:8px"><span class="badge bad">В касата няма толкова</span> <button class="btn sm sec" id="wgTake">Вземи от плик</button></div>` : '');
+    if ($('#wgTake')) $('#wgTake').onclick = () => { o.remove(); takeModal(tabPay); }; };
+  $('#wgAmt').oninput = rest; rest();
+  $('#wgOk').onclick = async () => {
+    const b = $('#wgOk'); b.disabled = true;
+    try { const r = await api('takeWage', { amount: $('#wgAmt').value.replace(',', '.') }); o.remove();
+      toast('Записано: ' + eur(r.amount) + (r.left > 0.004 ? ' · остава ' + eur(r.left) : '')); await refreshCashierKpis(); tabPay(); }
+    catch (e) { toast(e.message, false); b.disabled = false; }
+  };
+}
+function payModal(name, owed) {
+  const till = S.day.shift ? S.day.shift.expected : 0;
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Плащане"><h2 style="font-size:18px">Плащане на ${esc(name)}</h2>
+    <div class="muted">Дължимо: <b>${eur(owed)}</b> · в касата: <b>${eur(till)}</b></div>
+    <label class="l" for="payAmt">Сума, която давам сега</label><input class="f money" id="payAmt" inputmode="decimal" value="${Math.min(owed, Math.max(till, 0)).toFixed(2)}">
+    <div id="payRest" style="margin-top:8px"></div>
+    <p class="muted" style="margin:10px 0 0">Потвърди само след като си дал парите на мияча.</p>
+    <div style="display:flex;gap:8px"><button class="btn sec" id="payNo">Отказ</button><button class="btn green" id="payOk">Потвърди</button></div></div>`;
+  document.body.appendChild(o);
+  $('#payNo').onclick = () => o.remove();
+  const rest = () => { const a = +($('#payAmt').value.replace(',', '.')) || 0, r = Math.round((owed - a) * 100) / 100;
+    $('#payRest').innerHTML = (a > owed + 0.004 ? '<span class="badge bad">Повече от дължимото</span>'
+      : r > 0.004 ? `<span class="badge warn">Ще остане да взема ${eur(r)} — записва се като дълг към мияча</span>` : '<span class="badge ok">Изплаща се всичко</span>') +
+      (a > till + 0.004 ? `<div style="margin-top:8px"><span class="badge bad">В касата няма толкова</span> <button class="btn sm sec" id="payTake">Вземи от плик</button></div>` : '');
+    if ($('#payTake')) $('#payTake').onclick = () => { o.remove(); takeModal(tabPay); }; };
+  $('#payAmt').oninput = rest; rest();
+  if (till < owed - 0.004) $('#payRest').insertAdjacentHTML('beforeend', `<div class="muted" style="margin-top:8px">В касата няма за цялата сума. Вземи от плик или плати част сега.</div><button class="btn sm sec" style="margin-top:6px" id="payTake2">Вземи от плик</button>`);
+  if ($('#payTake2')) $('#payTake2').onclick = () => { o.remove(); takeModal(tabPay); };
+  $('#payOk').onclick = async () => {
+    const b = $('#payOk'); b.disabled = true;
+    try {
+      const r = await api('payWasher', { washer: name, amount: $('#payAmt').value.replace(',', '.') });
+      o.remove(); const left = Math.round((owed - r.amount) * 100) / 100;
+      toast('Платено ' + eur(r.amount) + ' на ' + r.washer + (left > 0.004 ? ' · остава ' + eur(left) : '')); await refreshCashierKpis(); tabPay();
+    } catch (e) { toast(e.message, false); b.disabled = false; }
+  };
+}
+async function tabToday() {
+  await refreshCashierKpis();
+  const j = S.day; if (!j) return;
+  const act = j.items.filter(k => !k.void);
+  const sh = j.shift;
+  $('#app').innerHTML = (sh ? `<div class="card"><b style="font-size:17px">Смяна № ${sh.no}</b><div class="muted">отворена ${esc(sh.openT)} от ${esc(sh.openBy)} · начална сума ${eur(sh.openCash)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <button class="btn sec" id="handSh" style="margin:0">Предай смяната<div class="muted" style="font-weight:500">междинен отчет</div></button>
+        <button class="btn teal" id="closeSh" style="margin:0">Приключи деня<div style="font-weight:500;font-size:13px">отчет + плик</div></button></div>
+      <button class="btn sec" id="takeEnv" style="margin-top:8px">${ic('cash', 18)} Взех пари от плик</button></div>
+    <div class="stats">
+      <div class="stat" style="--c:var(--green)"><b>${eur(sh.cash)}</b><span>в брой тази смяна</span></div>
+      <div class="stat" style="--c:var(--amber)"><b>${eur(sh.paidTill)}</b><span>изплатени заплати</span></div>
+      <div class="stat" style="--c:#7C3AED"><b>${eur(sh.taken)}</b><span>взето от пликове</span></div>
+      <div class="stat" style="--c:var(--teal)"><b>${eur(sh.expected)}</b><span>в касата сега</span></div></div>`
+    : `<div class="card"><b>Смяната е затворена.</b> <button class="btn teal" id="openSh">Приеми касата · Отвори смяна</button></div>`) + `
+    <div class="sec-t">Талони днес · ${act.length}</div><div class="card">` +
+    (j.items.length ? j.items.map(k => `<div class="row"><div><span class="pl">${esc(k.plate)}</span>
+        <div class="muted">№${esc(k.talon)} · ${esc(k.time)} · ${esc(k.washer)}<br>${esc(k.service)}</div></div>
+        <div style="text-align:right">${k.void ? '<span class="badge gray">анулиран</span>' : `<b class="tnum">${eur(k.price)}</b>`}
+        ${!k.void && k.pay !== 'cash' ? `<div style="margin-top:4px"><span class="badge ${!k.pay ? 'bad' : k.pay === 'firm' ? 'warn' : 'blue'}">${!k.pay ? 'чака плащане' : k.pay === 'firm' ? 'фирма' : 'карта'}</span></div>` : ''}</div></div>`).join('')
+      : '<div class="empty">Още няма коли днес.</div>') + '</div>';
+  if ($('#closeSh')) $('#closeSh').onclick = () => closeShiftStart('day');
+  if ($('#handSh')) $('#handSh').onclick = () => closeShiftStart('handover');
+  if ($('#takeEnv')) $('#takeEnv').onclick = () => takeModal(tabToday);
+  if ($('#openSh')) $('#openSh').onclick = openShiftScreen;
+}
+
+/* ---------- МИЯЧ ---------- */
+function washerScreen() {
+  $('#app').innerHTML = `
+    <div id="pend"></div>
+    <div class="card" style="display:flex;gap:10px;align-items:flex-start;background:#FFF7ED"><span class="ico" style="--c:#C2410C">${ic('ticket')}</span>
+      <div><b>Без талон не се мие</b><div class="muted">Кола без талон — изпрати клиента на касата. Заплатата ти се смята само от колите с талон.</div></div></div>
+    <div id="debt"></div>
+    <div class="sec-t">Моите коли днес</div><div class="card" id="list"><div class="empty">Зареждане…</div></div>`;
+  S.saveWash = async plate => {
+    try { await api('addWash', { plate }); toast('Започна: ' + String(plate).toUpperCase()); loadWasher(); }
+    catch (e) { toast(e.message, false); }
+  };
+  loadWasher();
+  timer = setInterval(loadWasher, 30000);
+}
+async function loadWasher() {
+  let j; try { j = await api('myDay'); } catch (e) { return; }
+  setKpis([[(j.pending || []).length, 'чакат ме', (j.pending || []).length ? 'good' : ''], [j.carsKasa, 'коли днес'], [eur(j.pay), 'заработено днес', 'good'], [eur(j.owed), 'остава да получа']], true);
+  $('#debt').innerHTML = j.prev > 0.004 ? `<div class="card alert amb" style="margin-top:12px"><b>Имаш да взимаш ${eur(j.prev)} от предишни дни</b><div class="muted">Те са включени в „остава да получа“.</div></div>` : '';
+  const pend = j.pending || [];
+  $('#pend').innerHTML = pend.length ? `<div class="sec-t" style="color:#8A6A00">Чакат те · ${pend.length} ${pend.length === 1 ? 'кола' : 'коли'} с талон</div>` +
+    pend.map(k => `<button class="pend" data-pp="${esc(k.plate)}"><span class="ico" style="--c:#B8860B">${ic('ticket')}</span>
+      <span style="flex:1;min-width:0;text-align:left"><div class="pl" style="font-size:20px">${esc(k.plate)}</div><div class="muted">Талон №${esc(k.talon)} · издаден ${esc(k.time)}</div></span>
+      <span class="go-pill">Започвам</span></button>`).join('')
+    : `<div class="card" style="display:flex;align-items:center;gap:10px"><span class="ico" style="--c:var(--green)">${ic('check')}</span><div><b>Няма чакащи коли</b><div class="muted">Когато касата издаде талон за теб, ще се появи тук.</div></div></div>`;
+  document.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => S.saveWash(b.dataset.pp));
+  $('#list').innerHTML = j.items.length ? j.items.map(w => `<div class="row"><div><span class="pl">${esc(w.plate)}</span><div class="muted">${esc(w.time)}</div></div>
+      ${w.matched ? '<span class="badge ok">✓ талон</span>' : '<span class="badge bad">няма талон</span>'}</div>`).join('')
+    : '<div class="empty">Още няма записани коли.</div>';
+}
+
+/* ---------- СОБСТВЕНИК ---------- */
+function dateBar(id) { return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><label class="muted" for="${id}">Дата</label><input class="f" type="date" id="${id}" value="${S.repDate}" style="padding:8px 10px;font-size:15px"></div>`; }
+function repSwitch() {
+  const m = S.repMode || 'day';
+  return `<div class="seg" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px" id="rmode">${[['day', 'Ден'], ['month', 'Месец'], ['clients', 'Клиенти']].map(x => `<button data-m="${x[0]}" class="${m === x[0] ? 'on' : ''}">${x[1]}</button>`).join('')}</div>`;
+}
+function bindSwitch() { document.querySelectorAll('#rmode button').forEach(b => b.onclick = () => { S.repMode = b.dataset.m; tabRep(); }); }
+async function tabRep() {
+  if (S.repMode === 'month') return tabMonth();
+  if (S.repMode === 'clients') return tabClients();
+  $('#app').innerHTML = repSwitch() + dateBar('d') + '<div id="rep"><div class="empty">Зареждане…</div></div>';
+  bindSwitch();
+  $('#d').onchange = () => { S.repDate = $('#d').value || todayStr(); tabRep(); };
+  let j; try { j = await api('report', { date: S.repDate }); } catch (e) { $('#rep').textContent = e.message; return; }
+  const t = j.totals;
+  setKpis([[t.carsKasa, 'талона'], [eur(t.revenue), 'оборот'], [t.noWasher, 'незапочнати', t.noWasher ? 'warn' : 'good']]);
+  let h = `<div class="stats">
+    <div class="stat" style="--c:var(--green)"><b>${eur(t.revenueCash)}</b><span>в брой</span></div>
+    <div class="stat" style="--c:var(--blue)"><b>${eur(t.revenueCard)}</b><span>с карта</span></div>
+    <div class="stat" style="--c:var(--amber)"><b>${eur(t.revenueFirm)}</b><span>фирми (фактура)</span></div>
+    ${t.unpaid ? `<div class="stat" style="--c:var(--red)"><b>${t.unpaid} · ${eur(t.revenueUnpaid)}</b><span>чакат плащане</span></div>` : ''}
+    <div class="stat" style="--c:#7C3AED"><b>${eur(t.washerPay)}</b><span>за миячи (${j.pct}%)</span></div>
+    <div class="stat" style="--c:var(--amber)"><b>${eur(t.paidOut)}</b><span>изплатени заплати</span></div>
+    <div class="stat" style="--c:#B8860B"><b>${eur(t.cashierPay || 0)}</b><span>надник касиери</span></div>
+    <div class="stat" style="--c:var(--teal)"><b>${eur(t.revenueCash - t.paidOut)}</b><span>трябва да има в касата</span></div>
+    ${t.gifts ? `<div class="stat" style="--c:#CA8A04"><b>${t.gifts} · ${eur(t.giftValue)}</b><span>подаръци (карта за лоялност)</span></div>` : ''}
+    <div class="stat wide" style="--c:var(--navy)"><b>${eur(t.company)}</b><span>остава за автомивката</span></div></div>`;
+  if (j.noWasher.length) h += `<div class="card alert amb"><h2>Талони, които миячът не е започнал · ${j.noWasher.length}</h2><p class="muted" style="margin-top:0">Колата чака или миячът е забравил да натисне „Започвам“.</p>` +
+    j.noWasher.map(k => `<div class="row"><div><span class="pl">${esc(k.plate)}</span><div class="muted">№${esc(k.talon)} · ${esc(k.time)} · ${esc(k.washer)}</div></div><span class="badge warn">провери</span></div>`).join('') + '</div>';
+  if (!j.noWasher.length && t.carsKasa) h += `<div class="card"><span class="badge ok">✓ Всички талони са поети от миячите</span></div>`;
+  h += `<div class="sec-t">Миячи</div><div class="card scroll"><table><tr><th>Мияч</th><th>Талони</th><th>Започнати</th><th>Заработено</th><th>Платено</th><th>Дължимо</th></tr>` +
+    j.washers.map(w => `<tr><td><b>${esc(w.name)}</b></td><td>${w.carsKasa}</td><td>${w.logged}</td>
+      <td>${eur(w.pay)}</td><td>${eur(w.paidDay)}</td><td><b>${eur(w.owed)}</b></td></tr>`).join('') + '</table></div>';
+  let shf = { shifts: [], envelopes: [], envTotal: 0 }; try { shf = await api('shifts', { date: S.repDate }); } catch (e) {}
+  h += `<div class="sec-t">Смени</div>` + (shf.shifts.length ? shf.shifts.map(s => `<div class="card ${s.closeT && Math.abs(s.diff) >= 0.005 ? 'alert' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Смяна № ${s.no} · ${esc(s.openT)}–${esc(s.closeT || 'отворена')}</b>
+        ${!s.closeT ? '<span class="badge blue">отворена</span>' : s.mode === 'handover' ? '<span class="badge gray">предадена</span>' : '<span class="badge ok">ден приключен</span>'}</div>
+      <div class="muted">${esc(s.openBy)}${s.closeBy && s.closeBy !== s.openBy ? ' → ' + esc(s.closeBy) : ''} · ${s.talons} талона · в брой ${eur(s.cash)}${s.taken ? ' · взето от пликове ' + eur(s.taken) : ''}${s.openDiff ? ` · <span style="color:var(--red)">при приемане разлика ${eur(s.openDiff)}</span>` : ''}</div>
+      ${s.closeT ? `<div style="background:var(--soft);border-radius:12px;padding:2px 12px;margin-top:10px">
+        <div class="row" style="padding:7px 0"><span class="muted">Трябва да има</span><b class="tnum">${eur(s.expected)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">Преброено</span><b class="tnum">${eur(s.counted)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">Разлика</span><b class="tnum" style="color:${Math.abs(s.diff) < 0.005 ? 'var(--green)' : 'var(--red)'}">${Math.abs(s.diff) < 0.005 ? '✓ точно' : (s.diff > 0 ? '+' : '') + eur(s.diff)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">${s.mode === 'handover' ? 'Предадено в касата' : 'В плика / за ресто'}</span><b class="tnum">${s.mode === 'handover' ? eur(s.counted) : eur(s.envelope) + ' / ' + eur(s.leftFloat)}</b></div></div>` : `<div class="muted" style="margin-top:6px">В касата сега: <b>${eur(s.expected)}</b></div>`}</div>`).join('') : '<div class="card"><div class="empty">Няма смени за тази дата.</div></div>');
+  h += `<div class="sec-t">Пликове в касата · ${eur(shf.envTotal)}</div><div class="card"><p class="muted" style="margin-top:0">Пликовете, които още не сте прибрали. От тях касиерът може да вземе пари за заплати — всяко взимане се записва.</p>` +
+    (shf.envelopes.length ? shf.envelopes.map(e => `<div style="border-top:1px solid var(--line);padding:10px 0">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(e.label)}</b>${e.received ? `<span class="badge ok">✓ прибран ${eur(e.received.amount)}</span>` : `<span class="money" style="font-size:18px">${eur(e.left)}</span>`}</div>
+      <div class="muted">${esc(bgDate(e.date))} · сложени ${eur(e.amount)}</div>
+      ${e.taken.map(t => `<div class="row" style="padding:5px 0"><span class="muted">${esc(bgDate(t.date)).slice(0, 5)} ${esc(t.time)} · ${esc(t.by)} · ${esc(t.note)}</span><b class="tnum" style="color:var(--amber)">−${eur(t.amount)}</b></div>`).join('')}
+      ${e.received ? (Math.abs(e.received.amount - e.left) >= 0.005 ? `<span class="badge bad">Разлика при прибиране ${eur(e.received.amount - e.left)}</span>` : '') : `<button class="btn green" data-env="${esc(e.id)}" data-amt="${e.left}" style="margin-top:6px">Прибрах плика</button>`}</div>`).join('') : '<div class="empty">Няма пликове.</div>') +
+    `<button class="btn sec" id="envAdd">Оставям плик с пари (резерв)</button></div>`;
+  const debt = j.washers.filter(w => w.owed > 0.004);
+  if (debt.length) h += `<div class="sec-t">Неизплатени заплати</div><div class="card">` + debt.map(w =>
+    `<div class="row"><div><b>${esc(w.name)}</b><div class="muted">${w.prev > 0.004 ? 'от предишни дни ' + eur(w.prev) + ' · ' : ''}от този ден ${eur(w.owed - w.prev)}</div></div><b class="tnum" style="color:var(--amber)">${eur(w.owed)}</b></div>`).join('') + '</div>';
+  if (j.cashiers && j.cashiers.length) h += `<div class="sec-t">Касиери · надник</div><div class="card">` + j.cashiers.map(c =>
+    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">надник ${eur(c.wage)}${c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето'}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
+  if (j.payments.length) h += `<div class="sec-t">Изплатени заплати</div><div class="card">` + j.payments.map(x =>
+    `<div class="row"><div><b>${esc(x.washer)}</b>${x.kind === 'cashier' ? ' <span class="badge blue">надник касиер</span>' : ''}<div class="muted">${esc(x.time)}${x.kind === 'cashier' ? '' : ' · платил: ' + esc(x.cashier)}</div></div><b class="tnum">${eur(x.amount)}</b></div>`).join('') + '</div>';
+  $('#rep').innerHTML = h;
+  document.querySelectorAll('[data-env]').forEach(b => b.onclick = () => envModal(b.dataset.env, +b.dataset.amt));
+  if ($('#envAdd')) $('#envAdd').onclick = envAddModal;
+}
+function envModal(id, amt) {
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Прибиране на плик"><h2 style="font-size:18px">Прибиране на плика</h2>
+    <div class="muted">След взиманията в плика трябва да има <b>${eur(amt)}</b>.</div>
+    <label class="l" for="envA">Преброих в плика</label><input class="f money" id="envA" inputmode="decimal" value="${amt.toFixed(2)}">
+    <div style="display:flex;gap:8px"><button class="btn sec" id="envNo">Отказ</button><button class="btn green" id="envOk">Потвърди</button></div></div>`;
+  document.body.appendChild(o);
+  $('#envNo').onclick = () => o.remove();
+  $('#envOk').onclick = async () => { try { await api('receiveEnvelope', { id, amount: $('#envA').value }); o.remove(); toast('Пликът е прибран'); tabRep(); } catch (e) { toast(e.message, false); } };
+}
+function envAddModal() {
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Плик резерв"><h2 style="font-size:18px">Оставям плик с пари</h2>
+    <p class="muted" style="margin-top:0">За дни, в които в касата няма достатъчно за заплати.</p>
+    <label class="l" for="eaA">Сума</label><input class="f money" id="eaA" inputmode="decimal" placeholder="напр. 200">
+    <label class="l" for="eaN">Надпис на плика</label><input class="f" id="eaN" value="Резерв за заплати">
+    <div style="display:flex;gap:8px"><button class="btn sec" id="eaNo">Отказ</button><button class="btn green" id="eaOk">Запиши</button></div></div>`;
+  document.body.appendChild(o);
+  $('#eaNo').onclick = () => o.remove();
+  $('#eaOk').onclick = async () => { try { await api('envAdd', { amount: $('#eaA').value, note: $('#eaN').value }); o.remove(); toast('Пликът е записан'); tabRep(); } catch (e) { toast(e.message, false); } };
+}
+async function tabTalons() {
+  $('#app').innerHTML = dateBar('d') + '<div id="tl"><div class="empty">Зареждане…</div></div>';
+  $('#d').onchange = () => { S.repDate = $('#d').value || todayStr(); tabTalons(); };
+  let j; try { j = await api('report', { date: S.repDate }); } catch (e) { $('#tl').textContent = e.message; return; }
+  $('#tl').innerHTML = `<p class="muted" style="margin:0 2px 10px">Касиерът не може да трие или променя талони. Анулира само собственикът, с причина.</p><div class="card">` +
+    (j.kasa.length ? j.kasa.map(k => `<div class="row"><div style="min-width:0"><span class="pl">${esc(k.plate)}</span>
+      <div class="muted">№${esc(k.talon)} · ${esc(k.time)} · ${esc(k.washer)} · ${k.pay === 'firm' ? esc(k.firm) : PAYL[k.pay].toLowerCase()}<br>${esc(k.service)}${k.void ? '<br>Анулиран: ' + esc(k.reason) : ''}</div></div>
+      <div style="text-align:right;flex:none"><b class="tnum">${eur(k.price)}</b><div style="margin-top:6px">${k.void ? '<span class="badge gray">анулиран</span>' : `<button class="btn sm void" data-void="${esc(k.id)}">Анулирай</button>`}</div></div></div>`).join('')
+      : '<div class="empty">Няма талони за тази дата.</div>') + '</div>';
+  document.querySelectorAll('[data-void]').forEach(b => b.onclick = async () => {
+    const reason = await askReason(); if (!reason) return;
+    try { await api('voidKasa', { id: b.dataset.void, reason }); toast('Талонът е анулиран'); tabTalons(); } catch (e) { toast(e.message, false); }
+  });
+}
+function byCar(items) {
+  const m = {}; items.forEach(i => { const k = normPlate(i.plate), c = m[k] || (m[k] = { plate: i.plate, n: 0, total: 0 }); c.n++; c.total += i.price; });
+  return Object.values(m).sort((a, b) => b.total - a.total);
+}
+async function tabInv() {
+  S.invMonth = S.invMonth || todayStr().slice(0, 7);
+  $('#app').innerHTML = `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><label class="muted" for="fm">Месец</label><input class="f" type="month" id="fm" value="${S.invMonth}" style="padding:8px 10px;font-size:15px"></div><div id="fmr"><div class="empty">Зареждане…</div></div>`;
+  $('#fm').onchange = () => { S.invMonth = $('#fm').value || todayStr().slice(0, 7); tabInv(); };
+  let j; try { j = await api('firmMonth', { month: S.invMonth }); } catch (e) { $('#fmr').textContent = e.message; return; }
+  const tot = j.firms.reduce((s, f) => s + f.total, 0), paid = j.firms.reduce((s, f) => s + f.paid, 0);
+  setKpis([[eur(tot), 'за месеца'], [eur(paid), 'платено', 'good'], [eur(tot - paid), 'остава', tot - paid > 0.004 ? 'warn' : '']]);
+  const mName = m => { const [y, mm] = m.split('-'); return ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'][+mm - 1] + ' ' + y; };
+  const status = f => f.rest <= 0.004 ? '<span class="badge ok">✓ платено</span>' : f.paid > 0 ? `<span class="badge warn">остава ${eur(f.rest)}</span>` : '<span class="badge bad">неплатено</span>';
+  $('#fmr').innerHTML = (j.older.length ? `<div class="card alert"><h2>Неплатени от предишни месеци</h2>` + j.older.map(o =>
+      `<button class="row" data-om="${o.month}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left"><div><b>${esc(o.firm)}</b><div class="muted">${mName(o.month)} · натисни за да отвориш</div></div><b class="tnum" style="color:var(--red)">${eur(o.rest)}</b></button>`).join('') + '</div>' : '') +
+    (j.firms.length ? j.firms.map((f, fi) => `<details class="card"><summary style="list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center">
+      <div><b>${esc(f.name)}</b><div class="muted">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.count} измивания · ${byCar(f.items).length} коли</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}<div style="margin-top:6px">${status(f)}</div></div><span class="money" style="font-size:18px">${eur(f.total)}</span></summary>
+      <div style="background:var(--soft);border-radius:12px;padding:4px 12px;margin-top:12px">
+        <div class="row" style="padding:8px 0"><span class="muted">Сума за месеца</span><b class="tnum">${eur(f.total)}</b></div>
+        ${f.pays.map(x => `<div class="row" style="padding:8px 0"><span class="muted">Платено ${bgDate(x.date).slice(0, 5)} · ${x.method === 'cash' ? 'в брой' : 'по банка'}${x.note ? ' · ' + esc(x.note) : ''}</span><b class="tnum" style="color:var(--green)">− ${eur(x.amount)}</b></div>`).join('')}
+        <div class="row" style="padding:8px 0"><b>Остава</b><b class="tnum" style="color:${f.rest > 0.004 ? 'var(--red)' : 'var(--green)'}">${eur(f.rest)}</b></div></div>
+      ${f.rest > 0.004 ? `<button class="btn green" data-fp="${fi}">Потвърди плащане</button>` : '<div style="margin-top:10px"><span class="badge ok">✓ Задължението за месеца е изчистено</span></div>'}
+      <button class="btn sec" data-frep="${fi}">${ic('file', 18)} Справка за клиента (PDF / Excel)</button>
+      <div class="sec-t" style="margin-top:12px">По коли</div>
+      ${byCar(f.items).map(c => `<div class="row"><div><span class="pl">${esc(c.plate)}</span><div class="muted">${c.n} ${c.n === 1 ? 'измиване' : 'измивания'}</div></div><b class="tnum">${eur(c.total)}</b></div>`).join('')}
+      <div class="sec-t">Всички измивания</div>
+      ${f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => `<div class="row"><div><span class="pl">${esc(i.plate)}</span><div class="muted">${esc(bgDate(i.date))} ${esc(i.time)} · ${esc(i.service)}</div></div><span class="tnum">${eur(i.price)}</span></div>`).join('')}
+    </details>`).join('') : '<div class="empty">Няма измивания на фирми за този месец.</div>');
+  document.querySelectorAll('[data-om]').forEach(b => b.onclick = () => { S.invMonth = b.dataset.om; tabInv(); });
+  document.querySelectorAll('[data-fp]').forEach(b => b.onclick = () => firmPayModal(j.firms[+b.dataset.fp], j.month, mName(j.month)));
+  document.querySelectorAll('[data-frep]').forEach(b => b.onclick = () => firmReport(j.firms[+b.dataset.frep], mName(j.month)));
+}
+/* ---------- СПРАВКА ЗА ФИРМА (A4 → PDF / печат, и CSV за Excel) ---------- */
+const REP_CSS = `.a4{font-family:Onest,Arial,sans-serif;color:#111;background:#fff;max-width:794px;margin:0 auto;padding:36px 40px;font-size:12px;line-height:1.45}
+.a4 .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #F2C230;padding-bottom:12px}
+.a4 .brand small{display:block;font-weight:800;letter-spacing:.14em;font-size:10px}.a4 .brand b{font-family:Cinzel,'Times New Roman',serif;font-size:30px;font-weight:500;letter-spacing:.08em}
+.a4 .brand span{display:block;font-size:10px;color:#555}.a4 h1{font-size:18px;margin:18px 0 2px}.a4 .muted{color:#666}
+.a4 .boxes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.a4 .box{border:1px solid #ddd;border-radius:8px;padding:8px 10px}.a4 .box b{display:block;font-size:16px}
+.a4 table{width:100%;border-collapse:collapse;margin:6px 0 14px;font-variant-numeric:tabular-nums}.a4 th{background:#111;color:#fff;text-align:left;padding:6px 8px;font-size:11px}
+.a4 th,.a4 td{text-align:left;white-space:normal}.a4 td{padding:5px 8px;border-bottom:1px solid #eee}.a4 td.r,.a4 th.r{text-align:right}.a4 tr.tot td{font-weight:800;border-top:2px solid #111;border-bottom:0}
+.a4 h2{font-size:13px;margin:14px 0 4px;text-transform:uppercase;letter-spacing:.06em}.a4 .sign{display:flex;justify-content:space-between;margin-top:40px}.a4 .foot{margin-top:24px;font-size:10px;color:#888;text-align:center}
+@media print{@page{size:A4;margin:12mm}.a4{padding:0;max-width:none}.a4 th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+function firmReportHtml(f, label) {
+  const e = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+  const items = f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)), cars = byCar(items);
+  return `<div class="a4"><div class="top"><div class="brand"><small>АВТОМИВКА</small><b>HELIOS</b><span>EXCLUSIVE CARWASH &amp; DETAILING CENTER</span></div>
+    <div style="text-align:right">${esc(S.address || '')}<div class="muted">Дата на справката: ${esc(bgDate(todayStr()))}</div></div></div>
+    <h1>Справка за извършени измивания</h1><div class="muted">Период: ${esc(label)}</div>
+    <div style="margin-top:10px"><b>${esc(f.name)}</b>${f.eik ? ' · ЕИК ' + esc(f.eik) : ''}${f.contact ? '<br>Лице за контакт: ' + esc(f.contact) : ''}${f.phone ? ' · тел. ' + esc(f.phone) : ''}</div>
+    <div class="boxes"><div class="box"><span class="muted">Измивания</span><b>${f.count}</b></div><div class="box"><span class="muted">Коли</span><b>${cars.length}</b></div>
+      <div class="box"><span class="muted">Сума</span><b>${e(f.total)}</b></div><div class="box"><span class="muted">${f.rest > 0.004 ? 'Остава за плащане' : 'Статус'}</span><b>${f.rest > 0.004 ? e(f.rest) : 'Платено'}</b></div></div>
+    <h2>По коли</h2><table><tr><th>Рег. номер</th><th class="r">Измивания</th><th class="r">Сума</th></tr>
+      ${cars.map(c => `<tr><td>${esc(c.plate)}</td><td class="r">${c.n}</td><td class="r">${e(c.total)}</td></tr>`).join('')}
+      <tr class="tot"><td>Общо</td><td class="r">${f.count}</td><td class="r">${e(f.total)}</td></tr></table>
+    <h2>Всички измивания</h2><table><tr><th>№</th><th>Дата</th><th>Час</th><th>Рег. номер</th><th>Услуга</th><th class="r">Цена</th></tr>
+      ${items.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(bgDate(i.date))}</td><td>${esc(i.time)}</td><td>${esc(i.plate)}</td><td>${esc(i.service)}</td><td class="r">${e(i.price)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="5">Общо за периода</td><td class="r">${e(f.total)}</td></tr></table>
+    ${f.pays.length ? `<h2>Плащания</h2><table><tr><th>Дата</th><th>Начин</th><th>Бележка</th><th class="r">Сума</th></tr>
+      ${f.pays.map(x => `<tr><td>${esc(bgDate(x.date))}</td><td>${x.method === 'cash' ? 'в брой' : 'по банка'}</td><td>${esc(x.note || '')}</td><td class="r">${e(x.amount)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="3">Остава</td><td class="r">${e(f.rest)}</td></tr></table>` : ''}
+    <div class="sign"><div>Изготвил: ........................</div><div>Получил: ........................</div></div>
+    <div class="foot">АВТОМИВКА HELIOS · ${esc(S.address || '')}</div></div>`;
+}
+function firmReport(f, label) {
+  const o = document.createElement('div'); o.className = 'modal'; o.style.alignItems = 'flex-start'; o.style.overflowY = 'auto';
+  o.innerHTML = `<div style="width:100%;max-width:840px;margin:auto">
+    <div class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:2">
+      <b style="flex:1;min-width:160px">Справка · ${esc(f.name)}</b>
+      <button class="btn sm teal" id="rpPdf">${ic('print', 16)} PDF / Печат</button><button class="btn sm sec" id="rpCsv">Excel</button><button class="btn sm sec" id="rpX">Затвори</button></div>
+    <div style="overflow-x:auto;border-radius:12px"><style>${REP_CSS}</style>${firmReportHtml(f, label)}</div></div>`;
+  document.body.appendChild(o);
+  $('#rpX').onclick = () => o.remove();
+  // PDF: отваря справката в нов прозорец и пуска печат — там се избира „Запази като PDF“
+  $('#rpPdf').onclick = () => {
+    const w = window.open('', '_blank');
+    if (!w) { toast('В демото не може да се отвори нов прозорец — в истинското приложение излиза прозорецът за печат / PDF', false); return; }
+    w.document.write(`<!doctype html><html lang="bg"><head><meta charset="utf-8"><title>Справка ${esc(f.name)} ${esc(label)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500&family=Onest:wght@400;700;800&display=swap"><style>body{margin:0}${REP_CSS}</style></head><body>${firmReportHtml(f, label)}<scr` + `ipt>setTimeout(()=>print(),600)</scr` + `ipt></body></html>`);
+    w.document.close();
+  };
+  // Excel: CSV файл с всички измивания (отваря се директно в Excel)
+  $('#rpCsv').onclick = () => {
+    const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const rows = [['Дата', 'Час', 'Рег. номер', 'Услуга', 'Цена €']].concat(f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => [bgDate(i.date), i.time, i.plate, i.service, String(i.price.toFixed(2)).replace('.', ',')]));
+    rows.push(['', '', '', 'Общо', String(f.total.toFixed(2)).replace('.', ',')]);
+    const csv = '\ufeff' + rows.map(r => r.map(q).join(';')).join('\r\n');
+    try {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'HELIOS-' + f.name.replace(/[^\wА-Яа-я]+/g, '-') + '-' + label.replace(' ', '-') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+      if (!AUTO_PRINT) toast('В демото файлът не може да се свали — в истинското приложение се сваля за Excel');
+    } catch (e) { toast('Файлът не може да се свали тук', false); }
+  };
+}
+function firmPayModal(f, month, label) {
+  const st = { method: 'bank' };
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Плащане от фирма"><h2 style="font-size:18px">${esc(f.name)}</h2>
+    <div class="muted">Плащане за ${esc(label)} · задължение ${eur(f.rest)}</div>
+    <label class="l" for="fpAmt">Платена сума</label><input class="f money" id="fpAmt" inputmode="decimal" value="${f.rest.toFixed(2)}">
+    <div id="fpRest" style="margin-top:8px"></div>
+    <label class="l">Как е платено</label><div class="seg" id="fpM" style="grid-template-columns:1fr 1fr"><button data-m="bank">По банка</button><button data-m="cash">В брой</button></div>
+    <label class="l" for="fpNote">Бележка (по желание)</label><input class="f" id="fpNote" placeholder="напр. Фактура 0000415">
+    <div style="display:flex;gap:8px"><button class="btn sec" id="fpNo">Отказ</button><button class="btn green" id="fpOk">Потвърди</button></div></div>`;
+  document.body.appendChild(o);
+  const draw = () => {
+    document.querySelectorAll('#fpM button').forEach(b => b.classList.toggle('on', b.dataset.m === st.method));
+    const a = +($('#fpAmt').value.replace(',', '.')) || 0, r = Math.round((f.rest - a) * 100) / 100;
+    $('#fpRest').innerHTML = a > f.rest + 0.004 ? '<span class="badge bad">Повече от задължението</span>' : r > 0.004 ? `<span class="badge warn">Ще остане да дължат ${eur(r)}</span>` : '<span class="badge ok">Задължението се изчиства</span>';
+  };
+  document.querySelectorAll('#fpM button').forEach(b => b.onclick = () => { st.method = b.dataset.m; draw(); });
+  $('#fpAmt').oninput = draw; draw();
+  $('#fpNo').onclick = () => o.remove();
+  $('#fpOk').onclick = async () => {
+    try {
+      const r = await api('firmPay', { firm: f.name, month, amount: $('#fpAmt').value, method: st.method, note: $('#fpNote').value });
+      o.remove(); toast(r.rest > 0.004 ? 'Записано · остава ' + eur(r.rest) : 'Задължението е изчистено'); tabInv();
+    } catch (e) { toast(e.message, false); }
+  };
+}
+async function tabFirms() {
+  $('#app').innerHTML = '<div class="empty">Зареждане…</div>';
+  let j; try { j = await api('firmsAll'); } catch (e) { $('#app').textContent = e.message; return; }
+  S.firmList = j.firms;
+  setKpis([[j.firms.filter(f => f.active).length, 'активни фирми'], [j.firms.reduce((s, f) => s + f.plates.length, 0), 'коли'], [S.prices.length, 'услуги']]);
+  $('#app').innerHTML = `<button class="btn teal" id="fNew" style="margin:0 0 12px">+ Нова фирма</button>` + (j.firms.length ? j.firms.map((f, i) => `<button class="card" data-fi="${i}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(f.name)}</b>${f.active ? '<span class="badge ok">активна</span>' : '<span class="badge gray">спряна</span>'}</div>
+      <div class="muted" style="margin-top:4px">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.plates.length} коли</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}
+      ${f.debt > 0.004 ? `<div style="margin-top:6px"><span class="badge bad">дължи ${eur(f.debt)}</span></div>` : ''}
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${Object.keys(f.prices).map(k => `<span class="badge blue">${esc(k)} ${eur(f.prices[k])}</span>`).join('')}</div></button>`).join('')
+    : '<div class="empty">Още няма въведени фирми.</div>');
+  $('#fNew').onclick = () => editFirm(null);
+  document.querySelectorAll('[data-fi]').forEach(b => b.onclick = () => editFirm(S.firmList[+b.dataset.fi]));
+}
+function editFirm(f) {
+  const plates = f ? f.plates.slice() : [];
+  $('#app').innerHTML = `<div class="card"><h2 style="font-size:17px">${f ? 'Промяна на фирма' : 'Нова фирма'}</h2>
+    <label class="l" for="fN">Име на фирмата</label><input class="f" id="fN" autocomplete="off" value="${esc(f ? f.name : '')}" placeholder="Транс Лоджистик ЕООД">
+    <label class="l" for="fE">ЕИК</label><input class="f" id="fE" inputmode="numeric" autocomplete="off" value="${esc(f ? f.eik : '')}" placeholder="9 цифри"></div>
+    <div class="card"><h2>Контакт</h2>
+    <label class="l" for="fC" style="margin-top:0">Лице за контакт</label><input class="f" id="fC" autocomplete="off" value="${esc(f ? f.contact : '')}" placeholder="напр. Николай Петров">
+    <label class="l" for="fT">Телефон</label><input class="f" id="fT" type="tel" inputmode="tel" autocomplete="off" value="${esc(f ? f.phone : '')}" placeholder="напр. 0888 123 456">
+    <label class="l" for="fM">Имейл (по желание, за фактурите)</label><input class="f" id="fM" type="email" inputmode="email" autocomplete="off" autocapitalize="none" value="${esc(f ? f.email : '')}" placeholder="office@firma.bg"></div>
+    <div class="card"><h2>Фирмени цени</h2><p class="muted" style="margin-top:-4px">Празно поле = нормалната цена.</p>
+    ${S.prices.map((p, i) => `<div class="row"><span style="display:flex;align-items:center;gap:10px;min-width:0"><span class="ico" style="--c:${COLORS[i % COLORS.length]}">${ic(svcIcon(p.name), 18)}</span>
+      <span><b>${esc(p.name)}</b><div class="muted">нормална ${eur(p.price)}</div></span></span>
+      <span style="display:flex;align-items:center;gap:6px;flex:none"><input class="f" data-fp="${esc(p.name)}" inputmode="decimal" style="width:92px;text-align:right;padding:10px" value="${f && f.prices[p.name] ? f.prices[p.name] : ''}" placeholder="${p.price}" aria-label="Фирмена цена за ${esc(p.name)}"> €</span></div>`).join('')}</div>
+    <div class="card"><h2>Коли на фирмата</h2><div id="fP"></div>
+    <div style="display:flex;gap:8px;margin-top:6px"><div class="plate-box" style="flex:1;min-width:0;height:54px"><div class="plate-eu" style="width:32px"><i></i>BG</div><input id="fPl" style="font-size:22px" autocomplete="off" autocapitalize="characters" placeholder="СА 1234 ВХ" aria-label="Нов номер"></div>
+      <button class="btn sm teal" id="fAdd" style="padding:0 18px">Добави</button></div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:600"><input type="checkbox" id="fA" ${!f || f.active ? 'checked' : ''}> Активна — касата може да я избира</label></div>
+    <div style="display:flex;gap:8px"><button class="btn sec" id="fCancel">Отказ</button><button class="btn green" id="fSave">Запази</button></div>`;
+  const draw = () => {
+    $('#fP').innerHTML = plates.length ? plates.map((p, i) => `<span class="pchip">${esc(p)}<button data-rm="${i}" aria-label="Махни ${esc(p)}">×</button></span>`).join('')
+      : '<div class="muted" style="margin-bottom:8px">Добавете номерата един по един.</div>';
+    document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { plates.splice(+b.dataset.rm, 1); draw(); });
+  };
+  const add = () => {
+    const v = $('#fPl').value.trim().toUpperCase(), n = normPlate(v);
+    if (n.length < 4) { toast('Въведи регистрационен номер', false); return; }
+    if (plates.some(p => normPlate(p) === n)) { toast('Този номер вече е в списъка', false); return; }
+    plates.push(v); $('#fPl').value = ''; $('#fPl').focus(); draw();
+  };
+  $('#fAdd').onclick = add;
+  $('#fPl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+  $('#fCancel').onclick = tabFirms;
+  $('#fSave').onclick = async () => {
+    const b = $('#fSave'); b.disabled = true;
+    try {
+      await api('saveFirm', { row: f ? f.row : 0, name: $('#fN').value, eik: $('#fE').value, contact: $('#fC').value, phone: $('#fT').value, email: $('#fM').value, plates, active: $('#fA').checked,
+        prices: Object.fromEntries([...document.querySelectorAll('[data-fp]')].map(i => [i.dataset.fp, i.value])) });
+      toast('Фирмата е запазена'); tabFirms();
+    } catch (e) { toast(e.message, false); b.disabled = false; }
+  };
+  draw(); window.scrollTo(0, 0);
+}
+
+/* ---------- МЕСЕЧЕН ОТЧЕТ ---------- */
+async function tabMonth() {
+  S.repMonth = S.repMonth || todayStr().slice(0, 7);
+  $('#app').innerHTML = repSwitch() + `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><label class="muted" for="mm">Месец</label><input class="f" type="month" id="mm" value="${S.repMonth}" style="padding:8px 10px;font-size:15px"></div><div id="rep"><div class="empty">Зареждане…</div></div>`;
+  bindSwitch();
+  $('#mm').onchange = () => { S.repMonth = $('#mm').value || todayStr().slice(0, 7); tabMonth(); };
+  let j; try { j = await api('monthReport', { month: S.repMonth }); } catch (e) { $('#rep').textContent = e.message; return; }
+  const t = j.totals, [yy, mm] = S.repMonth.split('-').map(Number), nd = new Date(yy, mm, 0).getDate();
+  setKpis([[t.cars, 'коли за месеца'], [eur(t.revenue), 'оборот'], [j.days.length, 'работни дни']]);
+  if (!j.days.length) { $('#rep').innerHTML = '<div class="empty">Няма данни за този месец.</div>'; return; }
+  const byDay = {}; j.days.forEach(d => byDay[+d.date.slice(8)] = d);
+  const max = Math.max(...j.days.map(d => d.revenue), 1), top = Math.ceil(max / 50) * 50;
+  const best = j.days.reduce((a, b) => b.revenue > a.revenue ? b : a);
+  let h = `<div class="stats">
+    <div class="stat" style="--c:var(--green)"><b>${eur(t.cash)}</b><span>в брой</span></div>
+    <div class="stat" style="--c:var(--blue)"><b>${eur(t.card)}</b><span>с карта</span></div>
+    <div class="stat" style="--c:var(--amber)"><b>${eur(t.firm)}</b><span>фирми (фактура)</span></div>
+    <div class="stat" style="--c:#7C3AED"><b>${eur(t.washerPay)}</b><span>за миячи (${j.pct}%)</span></div>
+    <div class="stat" style="--c:var(--amber)"><b>${eur(t.paidOut)}</b><span>изплатени заплати</span></div>
+    <div class="stat" style="--c:#B8860B"><b>${eur(t.cashierPay || 0)}</b><span>надник касиери</span></div>
+    <div class="stat" style="--c:var(--teal)"><b>${eur(t.revenue / j.days.length)}</b><span>среден оборот на ден</span></div>
+    ${t.gifts ? `<div class="stat wide" style="--c:#CA8A04"><b>${t.gifts} подаръка · ${eur(t.giftValue)}</b><span>безплатни измивания от картата за лоялност</span></div>` : ''}
+    <div class="stat wide" style="--c:var(--navy)"><b>${eur(t.company)}</b><span>остава за автомивката (преди разходи)</span></div></div>`;
+  h += `<div class="card"><h2>Оборот по дни</h2><div class="muted" id="cInfo" style="margin:-4px 0 10px;min-height:18px">Най-силен ден: ${bgDate(best.date)} — ${eur(best.revenue)}. Натисни стълб за подробности.</div>
+    <div class="chart" role="img" aria-label="Оборот по дни за месеца">
+      <div class="chart-grid" style="top:0">${top} €</div><div class="chart-grid" style="top:50%">${top / 2} €</div>
+      ${Array.from({ length: nd }, (_, i) => { const d = byDay[i + 1];
+        return `<button data-day="${i + 1}" aria-label="${i + 1}-ви: ${d ? eur(d.revenue) : 'няма данни'}"><i style="height:${d ? Math.max(1, d.revenue / top * 100) : 0}%"></i></button>`; }).join('')}
+    </div><div class="chart-x">${Array.from({ length: nd }, (_, i) => `<span>${(i + 1) % 5 === 0 || i === 0 ? i + 1 : ''}</span>`).join('')}</div></div>`;
+  h += `<div class="sec-t">Миячи</div><div class="card scroll"><table><tr><th>Мияч</th><th>Коли</th><th>Оборот</th><th>Заработено</th><th>Изплатено</th></tr>` +
+    j.washers.map(w => `<tr><td><b>${esc(w.name)}</b></td><td>${w.cars}</td><td>${eur(w.revenue)}</td><td>${eur(w.earned)}</td><td>${eur(w.paid)}</td></tr>`).join('') + '</table></div>';
+  h += `<div class="sec-t">Услуги</div><div class="card">` + j.services.map((s, i) => `<div class="row"><span style="display:flex;align-items:center;gap:10px"><span class="ico" style="--c:${COLORS[S.prices.findIndex(p => p.name === s.name) % COLORS.length] || '#64748B'}">${ic(svcIcon(s.name), 18)}</span><span><b>${esc(s.name)}</b><div class="muted">${s.count} пъти</div></span></span><b class="tnum">${eur(s.revenue)}</b></div>`).join('') + '</div>';
+  h += `<div class="sec-t">По дни</div><div class="card scroll"><table><tr><th>Дата</th><th>Коли</th><th>Оборот</th><th>В брой</th><th>С карта</th></tr>` +
+    j.days.slice().reverse().map(d => `<tr data-go="${d.date}" style="cursor:pointer"><td>${bgDate(d.date).slice(0, 5)}</td><td>${d.cars}</td><td>${eur(d.revenue)}</td><td>${eur(d.cash)}</td><td>${eur(d.card || 0)}</td></tr>`).join('') + '</table></div>';
+  $('#rep').innerHTML = h;
+  document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-day]').forEach(x => x.classList.toggle('on', x === b));
+    const d = byDay[+b.dataset.day];
+    $('#cInfo').innerHTML = d ? `<b>${bgDate(d.date)}</b> — ${eur(d.revenue)} · ${d.cars} коли` : `${b.dataset.day}-ви — няма данни`;
+  });
+  document.querySelectorAll('[data-go]').forEach(r => r.onclick = () => { S.repDate = r.dataset.go; S.repMode = 'day'; tabRep(); });
+}
+
+/* ---------- КЛИЕНТИ ПО НОМЕР ---------- */
+const ago = n => n === 0 ? 'днес' : n === 1 ? 'вчера' : 'преди ' + n + ' дни';
+async function tabClients() {
+  S.lostDays = S.lostDays || 30;
+  $('#app').innerHTML = repSwitch() + `<div class="card"><h2>Търси кола</h2><div style="display:flex;gap:8px">
+      <div class="plate-box" style="flex:1;min-width:0;height:54px"><div class="plate-eu" style="width:32px"><i></i>BG</div><input id="cq" style="font-size:22px" autocomplete="off" autocapitalize="characters" placeholder="СА 1234 ВХ" aria-label="Номер за търсене"></div>
+      <button class="btn sm teal" id="cGo" style="padding:0 18px">Търси</button></div><div id="cHist"></div></div><div id="cl"><div class="empty">Зареждане…</div></div>`;
+  bindSwitch();
+  const find = async () => {
+    const q = $('#cq').value; if (normPlate(q).length < 3) { toast('Въведи номер', false); return; }
+    let r; try { r = await api('plateHistory', { plate: q }); } catch (e) { toast(e.message, false); return; }
+    const sum = r.items.reduce((s, x) => s + x.price, 0);
+    $('#cHist').innerHTML = r.items.length ? `<div class="stats" style="margin:12px 0 4px"><div class="stat" style="--c:var(--teal)"><b>${r.items.length}</b><span>посещения общо</span></div><div class="stat" style="--c:var(--green)"><b>${eur(sum)}</b><span>похарчени</span></div></div>` +
+      r.items.map(x => `<div class="row"><div><b>${bgDate(x.date)}</b> <span class="muted">${esc(x.time)}</span><div class="muted">${esc(x.service)} · ${esc(x.washer)}${x.pay === 'firm' ? ' · фирма' : ''}</div></div><b class="tnum">${eur(x.price)}</b></div>`).join('')
+      : '<div class="empty">Тази кола не е идвала.</div>';
+  };
+  $('#cGo').onclick = find; $('#cq').onkeydown = e => { if (e.key === 'Enter') find(); };
+  let j; try { j = await api('clients', { days: S.lostDays }); } catch (e) { $('#cl').textContent = e.message; return; }
+  const s = j.stats;
+  setKpis([[s.month, 'коли този месец'], [s.back, 'върнали се'], [s.fresh, 'нови']]);
+  const tag = c => c.firm ? ` <span class="badge warn" style="padding:2px 8px">фирма</span>` : '';
+  let h = `<div class="stats">
+    <div class="stat" style="--c:var(--teal)"><b>${s.month}</b><span>различни коли този месец</span></div>
+    <div class="stat" style="--c:var(--green)"><b>${s.regular}</b><span>идвали 2+ пъти този месец</span></div>
+    <div class="stat" style="--c:var(--blue)"><b>${s.back}</b><span>върнали се от преди</span></div>
+    <div class="stat" style="--c:#7C3AED"><b>${s.fresh}</b><span>нови за първи път</span></div></div>`;
+  h += `<div class="sec-t">Редовни клиенти този месец</div><div class="card">` + (j.regulars.length ? j.regulars.map(c => `<button class="row" data-cp="${esc(c.plate)}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left">
+      <div><span class="pl">${esc(c.plate)}</span>${tag(c)}<div class="muted">последно ${ago(c.since)}${c.every ? ' · идва на всеки ~' + c.every + ' дни' : ''}</div></div>
+      <div style="text-align:right;flex:none"><span class="badge blue">${c.month}× този месец</span><div class="tnum muted" style="margin-top:4px">общо ${eur(c.spent)}</div></div></button>`).join('') : '<div class="empty">Още няма коли с 2+ посещения този месец.</div>') + '</div>';
+  h += `<div class="sec-t">Редовни, които не са идвали скоро</div>
+    <div class="seg" id="lostSeg" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">${[14, 30, 60].map(d => `<button data-d="${d}" class="${S.lostDays === d ? 'on' : ''}">над ${d} дни</button>`).join('')}</div>
+    <div class="card alert amb"><p class="muted" style="margin-top:0">Коли с поне 3 посещения, които не са идвали повече от ${S.lostDays} дни. Добри са за обаждане или отстъпка, ако имате контакт.</p>` +
+    (j.lost.length ? j.lost.map(c => `<button class="row" data-cp="${esc(c.plate)}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left">
+      <div><span class="pl">${esc(c.plate)}</span>${tag(c)}<div class="muted">${c.visits} посещения${c.every ? ' · обикновено на всеки ~' + c.every + ' дни' : ''}</div></div>
+      <div style="text-align:right;flex:none"><b style="color:var(--amber)">${ago(c.since)}</b><div class="muted">${bgDate(c.last)}</div></div></button>`).join('') : '<div class="empty">Няма такива коли.</div>') + '</div>';
+  $('#cl').innerHTML = h;
+  document.querySelectorAll('#lostSeg button').forEach(b => b.onclick = () => { S.lostDays = +b.dataset.d; tabClients(); });
+  document.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => { $('#cq').value = b.dataset.cp; find(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
+
+/* ---------- НАСТРОЙКИ (само собственик) ---------- */
+async function tabSet() {
+  $('#app').innerHTML = '<div class="empty">Зареждане…</div>';
+  let j, us, pr; try { const r = await Promise.all([api('getSettings'), api('users'), api('pricesAll')]); j = r[0]; us = r[1].users; pr = r[2].prices; } catch (e) { $('#app').textContent = e.message; return; }
+  S.priceList = pr;
+  S.userList = us;
+  setKpis([[S.prices.length, 'услуги'], [S.washers.length, 'миячи'], [j.clientTalon ? 'Вкл.' : 'Изкл.', 'талон за клиента', j.clientTalon ? 'good' : '']]);
+  const order = { admin: 0, cashier: 1, washer: 2 };
+  $('#app').innerHTML = `<div class="sec-t">Ценоразпис</div><div class="card"><p class="muted" style="margin:0 0 6px">Подредбата тук е подредбата на плочките в касата. Сложете най-честите услуги най-горе.</p>` +
+    pr.map((p, i) => `<div class="row"><button data-pe="${esc(p.id)}" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;cursor:pointer;text-align:left;padding:0">
+        <span class="ico" style="--c:${p.active ? COLORS[pr.filter(x => x.active).indexOf(p) % COLORS.length] : '#9CA3AF'}">${ic(svcIcon(p.name), 18)}</span>
+        <span style="min-width:0"><b>${esc(p.name)}</b>${p.active ? '' : ' <span class="badge gray">спряна</span>'}<div class="tnum" style="font-weight:800">${eur(p.price)}</div></span></button>
+      <span style="display:flex;gap:4px;flex:none"><button class="btn sm sec" data-mv="up" data-id="${esc(p.id)}" aria-label="Нагоре" ${i === 0 ? 'disabled' : ''}>▲</button><button class="btn sm sec" data-mv="down" data-id="${esc(p.id)}" aria-label="Надолу" ${i === pr.length - 1 ? 'disabled' : ''}>▼</button></span></div>`).join('') +
+    `<button class="btn teal" id="pNew">${ic('plus', 18)} Нова услуга</button></div>
+    <div class="sec-t">Екип</div><div class="card">` + us.slice().sort((a, b) => order[a.role] - order[b.role]).map(u => `<button class="row" data-ue="${esc(u.id)}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left">
+      <span style="display:flex;align-items:center;gap:10px"><span class="av" style="--c:${u.role === 'admin' ? '#0B0B0D' : u.role === 'cashier' ? '#B8860B' : '#2563EB'}">${esc(initials(u.name))}</span>
+      <span><b>${esc(u.name)}</b><div class="muted">${esc(u.username)} · ${ROLE[u.role]}${u.role === 'cashier' ? ' · надник ' + eur(u.dayWage || 0) + (u.canAddWashers ? ' · може да добавя миячи' : ' · без право да добавя миячи') : ''}</div></span></span>
+      ${u.active ? '<span class="badge ok">активен</span>' : '<span class="badge gray">спрян</span>'}</button>`).join('') +
+    `<button class="btn teal" id="uNew">${ic('plus', 18)} Нов човек</button></div>
+    <div class="sec-t">Карта за лоялност</div><div class="card">
+      <label style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>Включена</b><div class="muted">Броят се посещенията по номер на колата. Фирмените коли не участват.</div></span><input type="checkbox" class="sw" id="lOn" ${j.loyalty.on ? 'checked' : ''}></label>
+      <label class="l" for="lEv">Всяко кое измиване е подарък</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lEv" inputmode="numeric" value="${j.loyalty.every}" style="width:110px"><span class="muted">-о (напр. 10 = всяко 10-о е безплатно)</span></div>
+      <label class="l" for="lMax">Подаръкът е до стойност</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lMax" inputmode="decimal" value="${j.loyalty.maxValue}" style="width:110px"><b>€</b><span class="muted">над нея клиентът доплаща</span></div>
+      <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Миячът получава заплата и за подаръка</b><div class="muted">Смята се по нормалната цена, за да не губи миячът.</div></span><input type="checkbox" class="sw" id="lPay" ${j.loyalty.payWasher ? 'checked' : ''}></label>
+      <button class="btn green" id="lSave">Запази картата</button></div>
+    <div class="sec-t">Талон</div><div class="card">
+      <label class="l" for="sName" style="margin-top:0">Име на автомивката (горе на талона)</label><input class="f" id="sName" value="${esc(j.talonName)}">
+      <label class="l" for="sAddr">Адрес и телефон (на талона за клиента)</label><input class="f" id="sAddr" value="${esc(j.address || '')}">
+      <div class="row" style="margin-top:12px;border:0;align-items:flex-start"><label for="sClient" style="cursor:pointer"><b>Талон за клиента</b>
+        <div class="muted" style="margin-top:4px">Когато е включено, при всеки „Печат“ излизат два талона: <b>за колата</b> и <b>за клиента</b>. Касиерът не вижда тази настройка и не може да я промени.</div></label>
+        <input type="checkbox" class="sw" id="sClient" ${j.clientTalon ? 'checked' : ''}></div>
+      <button class="btn green" id="sSave">Запази</button></div>
+    <div class="sec-t">Как изглеждат талоните</div><div class="card" id="sPrev"></div>`;
+  const prev = () => {
+    const keep = [S.talonName, S.clientTalon, S.address]; S.talonName = $('#sName').value || 'АВТОМИВКА'; S.clientTalon = $('#sClient').checked; S.address = $('#sAddr').value;
+    $('#sPrev').innerHTML = bothTalons({ talon: 7, date: todayStr(), time: '10:30', plate: 'СА 4521 КМ', items: [{ name: 'Кола вътре+вън', price: 18 }, { name: 'Восък', price: 5 }], price: 23, pay: 'cash', washer: 'Иван', cashier: 'Мария', loy: { stamps: 7, every: 10 } }, false);
+    [S.talonName, S.clientTalon, S.address] = keep;
+  };
+  $('#sName').oninput = prev; $('#sAddr').oninput = prev; $('#sClient').onchange = prev; prev();
+  $('#uNew').onclick = () => userForm(null, false);
+  $('#pNew').onclick = () => priceForm(null);
+  document.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => priceForm(S.priceList.find(p => p.id === b.dataset.pe)));
+  document.querySelectorAll('[data-mv]').forEach(b => b.onclick = async () => {
+    try { const r = await api('movePrice', { id: b.dataset.id, dir: b.dataset.mv }); S.prices = r.prices; tabSet(); } catch (e) { toast(e.message, false); }
+  });
+  document.querySelectorAll('[data-ue]').forEach(b => b.onclick = () => userForm(S.userList.find(u => u.id === b.dataset.ue), false));
+  $('#lSave').onclick = async () => {
+    try { await api('saveLoyalty', { on: $('#lOn').checked, every: $('#lEv').value, maxValue: $('#lMax').value, payWasher: $('#lPay').checked }); toast('Картата за лоялност е запазена'); tabSet(); }
+    catch (e) { toast(e.message, false); }
+  };
+  $('#sSave').onclick = async () => {
+    try {
+      await api('saveSettings', { talonName: $('#sName').value, address: $('#sAddr').value, clientTalon: $('#sClient').checked });
+      S.talonName = $('#sName').value; S.clientTalon = $('#sClient').checked; S.address = $('#sAddr').value; toast('Настройките са запазени'); tabSet();
+    } catch (e) { toast(e.message, false); }
+  };
+}
+
+// профил на човек: собственикът създава и променя всички; касиер с право — само нови миячи
+function userForm(u, cashierMode) {
+  const st = { role: u ? u.role : cashierMode ? 'washer' : 'cashier' };
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Профил"><h2 style="font-size:18px">${u ? 'Промяна на профил' : cashierMode ? 'Нов мияч' : 'Нов човек'}</h2>
+    ${cashierMode || (u && u.role === 'admin') ? '' : `<div class="seg" id="uRole" style="grid-template-columns:1fr 1fr">${['cashier', 'washer'].map(r => `<button data-r="${r}">${ROLE[r]}</button>`).join('')}</div>`}
+    <label class="l" for="uName">Име (вижда се в приложението)</label><input class="f" id="uName" autocomplete="off" value="${esc(u ? u.name : '')}" placeholder="напр. Стефан">
+    <label class="l" for="uLogin">Потребителско име (латиница, за вход)</label><input class="f" id="uLogin" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(u ? u.username : '')}" placeholder="напр. stefan">
+    <label class="l" for="uPass">${u ? 'Нова парола (празно = без промяна)' : 'Парола (поне 6 знака)'}</label><input class="f" id="uPass" type="text" autocomplete="new-password" autocapitalize="none" spellcheck="false" placeholder="${u ? '••••••' : 'напр. Stefan2026'}">
+    <div class="muted" style="margin-top:6px">Кажете паролата на човека лично. Той не може да я смени сам.</div>
+    <div id="uCan"></div>
+    ${u && u.role !== 'admin' ? `<label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><b>Активен</b><input type="checkbox" class="sw" id="uAct" ${u.active ? 'checked' : ''}></label><div class="muted">Спрян профил не може да влиза. Историята му остава.</div>` : ''}
+    <div style="display:flex;gap:8px"><button class="btn sec" id="uNo">Отказ</button><button class="btn green" id="uOk">Запази</button></div></div>`;
+  document.body.appendChild(o);
+  const draw = () => {
+    document.querySelectorAll('#uRole button').forEach(b => b.classList.toggle('on', b.dataset.r === st.role));
+    $('#uCan').innerHTML = st.role === 'cashier' && !cashierMode ? `<label class="l" for="uWage">Надник за ден (€)</label><input class="f money" id="uWage" inputmode="decimal" value="${u && u.dayWage != null ? u.dayWage : 55}" style="width:140px"><label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Може да добавя миячи</b><div class="muted">Касиерът ще има бутон „Нов мияч“.</div></span><input type="checkbox" class="sw" id="uCanW" ${u && u.canAddWashers ? 'checked' : ''}></label>` : '';
+  };
+  document.querySelectorAll('#uRole button').forEach(b => b.onclick = () => { st.role = b.dataset.r; draw(); });
+  draw();
+  $('#uNo').onclick = () => o.remove();
+  $('#uOk').onclick = async () => {
+    try {
+      await api('saveUser', { id: u ? u.id : '', role: st.role, name: $('#uName').value, username: $('#uLogin').value, newPass: $('#uPass').value,
+        active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '' });
+      o.remove(); toast(cashierMode ? 'Миячът е добавен' : 'Профилът е запазен');
+      if (cashierMode) { await refreshCashierKpis(); tabPay(); } else tabSet();
+    } catch (e) { toast(e.message, false); }
+  };
+}
+
+// услуга в ценоразписа — само собственикът
+function priceForm(p) {
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Услуга"><h2 style="font-size:18px">${p ? 'Промяна на услуга' : 'Нова услуга'}</h2>
+    <label class="l" for="pN">Име на услугата</label><input class="f" id="pN" autocomplete="off" value="${esc(p ? p.name : '')}" placeholder="напр. Комплексно почистване">
+    <label class="l" for="pP">Цена за нормален клиент</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="pP" inputmode="decimal" value="${p ? p.price : ''}" placeholder="0.00"><b>€</b></div>
+    ${p ? `<label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Активна</b><div class="muted">Спряната услуга не се показва в касата. Старите талони остават.</div></span><input type="checkbox" class="sw" id="pA" ${p.active ? 'checked' : ''}></label>` : ''}
+    <p class="muted" style="margin:10px 0 0">Новата цена важи за следващите талони. Издадените талони не се променят. Фирмените цени се задават отделно във „Фирми“.</p>
+    <div style="display:flex;gap:8px"><button class="btn sec" id="pNo">Отказ</button><button class="btn green" id="pOk">Запази</button></div></div>`;
+  document.body.appendChild(o);
+  $('#pNo').onclick = () => o.remove();
+  $('#pOk').onclick = async () => {
+    try {
+      const r = await api('savePrice', { id: p ? p.id : '', name: $('#pN').value, price: $('#pP').value, active: $('#pA') ? $('#pA').checked : true });
+      S.prices = r.prices; o.remove(); toast('Ценоразписът е обновен'); tabSet();
+    } catch (e) { toast(e.message, false); }
+  };
+}
+
+/*START*/
+if (API_URL.indexOf('http') !== 0) {
+  $('#root').innerHTML = '<div class="wrap"><div class="card">Постави URL-а на Apps Script уеб приложението в <b>API_URL</b> в началото на index.html.</div></div>';
+} else {
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  const p = load('mw_pin'), l = load('mw_uid'); if (p && l) doLogin(p, l, true); else showLogin();
+}
+/*END*/
+</script>
+</body>
+</html>
