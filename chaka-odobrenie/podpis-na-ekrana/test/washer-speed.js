@@ -1,0 +1,21 @@
+const { chromium } = require('playwright');
+const API = 'http://localhost:8787/api';
+const post = b => fetch(API, { method: 'POST', body: JSON.stringify(b) }).then(r => r.json());
+(async () => {
+  const A = { login: 'admin', pass: 'helios2026' };
+  await post(Object.assign({ action: 'saveUser', role: 'cashier', name: 'Мария', username: 'maria', newPass: 'maria123', dayWage: 55 }, A));
+  await post(Object.assign({ action: 'saveUser', role: 'washer', name: 'Иван', username: 'ivan', newPass: 'ivan1234' }, A));
+  const M = { login: 'maria', pass: 'maria123' };
+  await post(Object.assign({ action: 'openShift', cash: 50 }, M));
+  for (const pl of ['СА 1234 ВХ', 'В 5555 КМ']) console.log('talon', (await post(Object.assign({ action: 'addKasa', plate: pl, services: ['Кола вътре+вън'], washer: 'Иван' }, M))).talon);
+  const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 390, height: 780 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8787/'); await p.waitForSelector('#lu'); await p.fill('#lu', 'ivan'); await p.fill('#lp', 'ivan1234'); await p.click('#lgo');
+  await p.waitForSelector('[data-pp]', { timeout: 30000 });
+  await p.screenshot({ path: process.env.SP + '/W0.png' });
+  const t = Date.now(); await p.click('[data-pp] >> nth=0');
+  await p.waitForFunction(() => document.querySelectorAll('[data-pp]').length === 1); console.log('button gone after', Date.now() - t, 'ms');
+  await p.screenshot({ path: process.env.SP + '/W1.png' });
+  await p.waitForFunction(() => !document.body.innerText.includes('записва се'), null, { timeout: 20000 }); console.log('confirmed by server after', Date.now() - t, 'ms');
+  await p.screenshot({ path: process.env.SP + '/W2.png' });
+  console.log(errs); await b.close();
+})();
