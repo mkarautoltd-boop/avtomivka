@@ -1399,7 +1399,7 @@ async function tabClients() {
 /* ---------- НАСТРОЙКИ (само собственик) ---------- */
 async function tabSet() {
   $('#app').innerHTML = '<div class="empty">Зареждане…</div>';
-  let j, us, pr; try { j = await api('getSettings'); us = (await api('users')).users; pr = (await api('pricesAll')).prices; } catch (e) { $('#app').textContent = e.message; return; }
+  let j, us, pr; try { const r = await Promise.all([api('getSettings'), api('users'), api('pricesAll')]); j = r[0]; us = r[1].users; pr = r[2].prices; } catch (e) { $('#app').textContent = e.message; return; }
   S.priceList = pr;
   S.userList = us;
   setKpis([[S.prices.length, 'услуги'], [S.washers.length, 'миячи'], [j.clientTalon ? 'Вкл.' : 'Изкл.', 'талон за клиента', j.clientTalon ? 'good' : '']]);

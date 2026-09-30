@@ -563,8 +563,8 @@ var HELIOS = (function () {
   function diff(db, snap) {
     var ch = { tables: {}, settings: JSON.stringify(db.settings) !== snap.settings, ids: [] };
     Object.keys(TABLES).forEach(function (t) {
-      if (!db[t]) return;
-      var old = snap[t] || [], upd = [], add = [];
+      if (snap[t] === undefined) return;          // листът не е четен — няма промени
+      var old = snap[t], upd = [], add = [];
       db[t].forEach(function (r, i) {
         if (i >= old.length) add.push(i);
         else if (JSON.stringify(r) !== old[i]) upd.push(i);
@@ -585,7 +585,7 @@ var HELIOS = (function () {
     since = Number(since) || 0; var tset = {}; (touch || []).forEach(function (id) { tset[id] = 1; });
     var out = { tables: {}, meta: { seq: db.meta.seq, v: db.meta.v } };
     SYNCED.forEach(function (t) {
-      var rows = db[t].filter(function (r) { return (Number(r.v) || 0) > since || tset[r.id]; });
+      var rows = db[t].filter(function (r) { return since === 0 || (Number(r.v) || 0) > since || tset[r.id]; });
       if (t === 'users') rows = rows.map(function (r) { var c = Object.assign({}, r); delete c.salt; delete c.hash; return c; });
       if (rows.length) out.tables[t] = rows;
     });
@@ -617,17 +617,17 @@ var HELIOS = (function () {
     return u;
   }
   function serve(p, store, env) {
-    var db = store.load(), snap = snapshot(db), out, u;
+    var db = store.load(), snap = store.snapshot ? store.snapshot() : snapshot(db), out, u;
     try {
       u = authUser(db, p);
-      var E = Engine(db, env), done = {};
-      db.ops.forEach(function (o) { done[o.cid] = 1; });
-      var rec = function (cid, action) { if (cid) { done[cid] = 1; db.ops.push({ cid: cid, action: action, at: env.today() + ' ' + env.now() }); } };
+      var E = Engine(db, env), doneMap = null;
+      var done = function (cid) { if (!doneMap) { doneMap = {}; db.ops.forEach(function (o) { doneMap[o.cid] = 1; }); } return !!doneMap[cid]; };
+      var rec = function (cid, action) { if (cid) { done(cid); doneMap[cid] = 1; db.ops.push({ cid: cid, action: action, at: env.today() + ' ' + env.now() }); } };
       if (p.action === 'sync') out = {};
       else if (p.action === 'batch') {   // изпращане на натрупаното на касата без интернет
         if (['cashier', 'admin'].indexOf(u.role) < 0) throw new Error('Нямаш права за това');
         out = { results: (p.items || []).map(function (it) {
-          if (it.cid && done[it.cid]) return { cid: it.cid, ok: true, dup: true };
+          if (it.cid && done(it.cid)) return { cid: it.cid, ok: true, dup: true };
           if (OFFLINE_WRITE.indexOf(it.action) < 0) return { cid: it.cid, ok: false, error: 'Непозната операция' };
           var who = db.users.filter(function (x) { return x.active && x.username === String(it.by || '').toLowerCase() && (x.role === 'cashier' || x.role === 'admin'); })[0] || u;
           var s2 = snapshot(db);
@@ -635,7 +635,7 @@ var HELIOS = (function () {
           catch (e) { restore(db, s2); return { cid: it.cid, ok: false, error: e.message, action: it.action }; }
         }) };
       } else {
-        if (p.cid && done[p.cid]) out = { dup: true };
+        if (p.cid && WRITE.indexOf(p.action) >= 0 && done(p.cid)) out = { dup: true };
         else { var q = Object.assign({}, p); delete q._d; delete q._t; delete q.talon; out = E.handle(q, u) || {}; if (WRITE.indexOf(p.action) >= 0) rec(p.cid, p.action); }
       }
     } catch (e) { return { ok: false, error: e.message }; }
