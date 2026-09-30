@@ -11,10 +11,10 @@ const store = { load: () => db, save: () => {} };
 global.TESTDB = db;
 const PORT = +process.env.PORT || 8787;
 http.createServer((req, res) => {
-  if (req.url === '/api' && req.method === 'POST') {
+  if (req.url === '/api' && req.method === 'POST') { const DELAY = +process.env.DELAY || 0;
     let b = ''; req.on('data', c => b += c); req.on('end', () => {
       let out; try { out = H.serve(JSON.parse(b), store, env); } catch (e) { out = { ok: false, error: 'server: ' + e.message }; }
-      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out));
+      setTimeout(() => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(out)); }, DELAY);
     }); return;
   }
   if (req.url === '/_db') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(db)); return; }

@@ -423,7 +423,34 @@ setInterval(netTick, 30000);
 window.addEventListener('online', netTick);
 window.addEventListener('offline', () => { if (cashierMode()) goOffline(); });
 
+// собственикът: екраните се показват веднага от паметта, а новото се дотегля отзад
+const RCACHE = {}, RBUSY = {};
+const clone = x => JSON.parse(JSON.stringify(x));
+function ownerCacheable(action) { return S.user && S.user.role === 'admin' && HELIOS.WRITE.indexOf(action) < 0 && ['login', 'sync', 'batch'].indexOf(action) < 0; }
+function refreshBg(key, action, data) {
+  if (RBUSY[key]) return; RBUSY[key] = 1;
+  serverCall(action, data).then(j => {
+    const old = RCACHE[key]; RCACHE[key] = { t: Date.now(), j };
+    if (old && JSON.stringify(old.j) !== JSON.stringify(j) && !document.querySelector('.modal') && S.render) S.render();
+  }).catch(() => {}).finally(() => { delete RBUSY[key]; });
+}
+function prefetchOwner() {
+  const d = todayStr(), m = d.slice(0, 7);
+  [['report', { date: d }], ['shifts', { date: d }], ['getSettings', {}], ['users', {}], ['pricesAll', {}], ['firmsAll', {}], ['monthReport', { month: m }], ['firmMonth', { month: m }], ['clients', { days: 30 }]]
+    .forEach(x => api(x[0], x[1]).catch(() => {}));
+}
 async function api(action, data = {}) {
+  if (ownerCacheable(action)) {
+    const key = S.uid + '|' + action + '|' + JSON.stringify(data), c = RCACHE[key];
+    if (c) { if (Date.now() - c.t > 5000) refreshBg(key, action, data); return clone(c.j); }
+    if (RBUSY[key]) await RBUSY[key];
+    const p = serverCall(action, data); RBUSY[key] = p.catch(() => {});
+    try { const j = await p; RCACHE[key] = { t: Date.now(), j }; return clone(j); } finally { delete RBUSY[key]; }
+  }
+  if (S.user && S.user.role === 'admin' && HELIOS.WRITE.indexOf(action) >= 0) {
+    Object.keys(RCACHE).forEach(k => delete RCACHE[k]);
+    try { return await serverCall(action, data); } finally { Object.keys(RCACHE).forEach(k => delete RCACHE[k]); }
+  }
   if (cashierMode() && REP) {
     if (HELIOS.LOCAL_READ.indexOf(action) >= 0) return localRun(action, data);
     if (HELIOS.OFFLINE_WRITE.indexOf(action) >= 0) return cashierWrite(action, data);
@@ -449,7 +476,9 @@ function go(tab) {
   S.tab = tab; clearInterval(timer); if ($('#app')) $('#app').classList.remove('has-side');
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   $('#bar').innerHTML = ''; window.scrollTo(0, 0);
-  ({ new: tabNew, due: tabDue, pay: tabPay, today: tabToday, rep: tabRep, talons: tabTalons, firms: tabFirms, inv: tabInv, set: tabSet })[tab]();
+  const fn = ({ new: tabNew, due: tabDue, pay: tabPay, today: tabToday, rep: tabRep, talons: tabTalons, firms: tabFirms, inv: tabInv, set: tabSet })[tab];
+  S.render = async () => { if (S.tab !== tab) return; const y = window.scrollY; await fn(); window.scrollTo(0, y); };   // пререждане, когато дойдат нови данни
+  fn();
 }
 
 /* ---------- вход ---------- */
@@ -528,7 +557,7 @@ function route() {
   Object.assign(F, { plate: '', svcs: [], washer: '', pay: null, autoFirm: false });
   if (r === 'cashier') { shell('Каса · ' + bgDate(todayStr()), [['new', 'Нова кола', 'plus'], ['due', 'Плащане', 'cash'], ['pay', 'Заплати', 'users'], ['today', 'Днес', 'list']]); refreshCashierKpis().then(() => go('new')); }
   else if (r === 'washer') { shell('Мияч · ' + bgDate(todayStr()), null); washerScreen(); }
-  else { S.repDate = todayStr(); shell('Отчети и контрол', [['rep', 'Отчет', 'chart'], ['talons', 'Талони', 'ticket'], ['firms', 'Фирми', 'building'], ['inv', 'Фактури', 'file'], ['set', 'Настройки', 'gear']]); go('rep'); }
+  else { S.repDate = todayStr(); shell('Отчети и контрол', [['rep', 'Отчет', 'chart'], ['talons', 'Талони', 'ticket'], ['firms', 'Фирми', 'building'], ['inv', 'Фактури', 'file'], ['set', 'Настройки', 'gear']]); go('rep'); setTimeout(prefetchOwner, 300); }
 }
 
 /* ---------- ТАЛОН ---------- */
@@ -1055,6 +1084,7 @@ async function tabRep() {
   $('#app').innerHTML = repSwitch() + dateBar('d') + '<div id="rep"><div class="empty">Зареждане…</div></div>';
   bindSwitch();
   $('#d').onchange = () => { S.repDate = $('#d').value || todayStr(); tabRep(); };
+  const shP = api('shifts', { date: S.repDate }).catch(() => null);
   let j; try { j = await api('report', { date: S.repDate }); } catch (e) { $('#rep').textContent = e.message; return; }
   const t = j.totals;
   setKpis([[t.carsKasa, 'талона'], [eur(t.revenue), 'оборот'], [t.noWasher, 'незапочнати', t.noWasher ? 'warn' : 'good']]);
@@ -1075,7 +1105,7 @@ async function tabRep() {
   h += `<div class="sec-t">Миячи</div><div class="card scroll"><table><tr><th>Мияч</th><th>Талони</th><th>Започнати</th><th>Заработено</th><th>Платено</th><th>Дължимо</th></tr>` +
     j.washers.map(w => `<tr><td><b>${esc(w.name)}</b></td><td>${w.carsKasa}</td><td>${w.logged}</td>
       <td>${eur(w.pay)}</td><td>${eur(w.paidDay)}</td><td><b>${eur(w.owed)}</b></td></tr>`).join('') + '</table></div>';
-  let shf = { shifts: [], envelopes: [], envTotal: 0 }; try { shf = await api('shifts', { date: S.repDate }); } catch (e) {}
+  let shf = (await shP) || { shifts: [], envelopes: [], envTotal: 0 };
   h += `<div class="sec-t">Смени</div>` + (shf.shifts.length ? shf.shifts.map(s => `<div class="card ${s.closeT && Math.abs(s.diff) >= 0.005 ? 'alert' : ''}">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Смяна № ${s.no} · ${esc(s.openT)}–${esc(s.closeT || 'отворена')}</b>
         ${!s.closeT ? '<span class="badge blue">отворена</span>' : s.mode === 'handover' ? '<span class="badge gray">предадена</span>' : '<span class="badge ok">ден приключен</span>'}</div>
