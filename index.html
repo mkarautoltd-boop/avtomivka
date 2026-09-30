@@ -1060,15 +1060,25 @@ function washerScreen() {
       <div><b>Без талон не се мие</b><div class="muted">Кола без талон — изпрати клиента на касата. Заплатата ти се смята само от колите с талон.</div></div></div>
     <div id="debt"></div>
     <div class="sec-t">Моите коли днес</div><div class="card" id="list">${LOADING()}</div>`;
+  // „Започвам“: веднага на екрана, записът отива към сървъра отзад
   S.saveWash = async plate => {
-    try { await api('addWash', { plate }); toast('Започна: ' + String(plate).toUpperCase()); loadWasher(); }
-    catch (e) { toast(e.message, false); }
+    const j = S.wj; if (!j) return;
+    const P = String(plate).toUpperCase(), d = new Date();
+    j.pending = (j.pending || []).filter(k => String(k.plate).toUpperCase() !== P);
+    j.items = [{ plate: P, time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), matched: true, sending: true }].concat(j.items || []);
+    renderWasher(j); toast('Започна: ' + P);
+    try { await api('addWash', { plate }); }
+    catch (e) { toast(e.message.indexOf('връзка') >= 0 ? 'Няма връзка — „' + P + '“ не е записана. Натисни пак.' : e.message, false); }
+    loadWasher();
   };
   loadWasher();
   timer = setInterval(loadWasher, 30000);
 }
 async function loadWasher() {
   let j; try { j = await api('myDay'); } catch (e) { return; }
+  S.wj = j; renderWasher(j);
+}
+function renderWasher(j) {
   setKpis([[(j.pending || []).length, 'чакат ме', (j.pending || []).length ? 'good' : ''], [j.carsKasa, 'коли днес'], [eur(j.pay), 'заработено днес', 'good'], [eur(j.owed), 'остава да получа']], true);
   $('#debt').innerHTML = j.prev > 0.004 ? `<div class="card alert amb" style="margin-top:12px"><b>Имаш да взимаш ${eur(j.prev)} от предишни дни</b><div class="muted">Те са включени в „остава да получа“.</div></div>` : '';
   const pend = j.pending || [];
@@ -1079,7 +1089,7 @@ async function loadWasher() {
     : `<div class="card" style="display:flex;align-items:center;gap:10px"><span class="ico" style="--c:var(--green)">${ic('check')}</span><div><b>Няма чакащи коли</b><div class="muted">Когато касата издаде талон за теб, ще се появи тук.</div></div></div>`;
   document.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => S.saveWash(b.dataset.pp));
   $('#list').innerHTML = j.items.length ? j.items.map(w => `<div class="row"><div><span class="pl">${esc(w.plate)}</span><div class="muted">${esc(w.time)}</div></div>
-      ${w.matched ? '<span class="badge ok">✓ талон</span>' : '<span class="badge bad">няма талон</span>'}</div>`).join('')
+      ${w.sending ? '<span class="badge gray">записва се…</span>' : w.matched ? '<span class="badge ok">✓ талон</span>' : '<span class="badge bad">няма талон</span>'}</div>`).join('')
     : '<div class="empty">Още няма записани коли.</div>';
 }
 
