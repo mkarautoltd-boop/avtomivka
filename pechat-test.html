@@ -21,7 +21,8 @@ small{color:#66728A}
 <div class="wrap">
   <div class="card" id="sup"></div>
   <div class="card">
-    <button id="bConn">1. Свържи принтера (избери COM порта)</button>
+    <button id="bUsb">1. Свържи принтера по USB</button>
+    <button id="bConn" class="sec">1б. Свържи през COM порт (ако има)</button>
     <button id="bText" disabled>2. Проба: текст на кирилица (5 реда)</button>
     <button id="bImg" disabled>3. Проба: талон като картинка</button>
     <button id="bBoth" class="sec" disabled>4. Отново и двете</button>
@@ -33,14 +34,39 @@ small{color:#66728A}
 const $ = s => document.querySelector(s);
 const log = (m, c) => { const d = document.createElement('div'); if (c) d.className = c; d.textContent = m; $('#log').appendChild(d); $('#log').scrollTop = 1e9; };
 $('#sup').innerHTML = 'serial' in navigator
-  ? '<span class="ok">✓ Chrome поддържа директна връзка с COM порт.</span><br><small>Принтерът трябва да е включен и да се вижда като COM порт в Диспечера на устройствата.</small>'
+  ? '<span class="ok">✓ Chrome поддържа директна връзка с принтера.</span><br><small>За USB: драйверът на принтера трябва да е сменен на WinUSB (със Zadig).</small>'
   : '<span class="bad">✗ Този браузър не поддържа директна връзка.</span> Отвори страницата в Google Chrome на компютъра.';
-let port = null, writer = null;
+let port = null, writer = null, usb = null, usbEp = 0;
 async function send(bytes) {
   const t0 = performance.now();
-  for (let i = 0; i < bytes.length; i += 4096) await writer.write(bytes.slice(i, i + 4096));
+  for (let i = 0; i < bytes.length; i += 4096) {
+    const part = bytes.slice(i, i + 4096);
+    if (usb) { const r = await usb.transferOut(usbEp, part); if (r.status !== 'ok') throw new Error('USB: ' + r.status); }
+    else await writer.write(part);
+  }
   return Math.round(performance.now() - t0);
 }
+const ready = () => ['#bText', '#bImg', '#bBoth'].forEach(s => $(s).disabled = false);
+$('#bUsb').onclick = async () => {
+  try {
+    if (!navigator.usb) throw new Error('Този браузър няма USB връзка — ползвай Chrome');
+    const d = await navigator.usb.requestDevice({ filters: [] });
+    await d.open();
+    if (d.configuration === null) await d.selectConfiguration(1);
+    let found = null;
+    for (const itf of d.configuration.interfaces) {
+      const ep = itf.alternates[0].endpoints.find(e => e.direction === 'out' && e.type === 'bulk');
+      if (ep) { found = { n: itf.interfaceNumber, ep: ep.endpointNumber }; break; }
+    }
+    if (!found) throw new Error('Устройството няма изход за печат — избери принтера');
+    await d.claimInterface(found.n);
+    usb = d; usbEp = found.ep;
+    log('✓ Свързан по USB: ' + (d.productName || 'устройство') + ' (' + d.vendorId.toString(16) + ':' + d.productId.toString(16) + ')', 'ok');
+    ready();
+  } catch (e) {
+    log('✗ ' + e.message + (/Access denied|claim/i.test(e.message) ? ' — драйверът още е „USB Printing Support“, смени го на WinUSB със Zadig' : ''), 'bad');
+  }
+};
 $('#bConn').onclick = async () => {
   try {
     port = await navigator.serial.requestPort();
@@ -48,7 +74,7 @@ $('#bConn').onclick = async () => {
     writer = port.writable.getWriter();
     const i = port.getInfo();
     log('✓ Свързан. ' + (i.usbVendorId ? 'USB ' + i.usbVendorId.toString(16) + ':' + (i.usbProductId || 0).toString(16) : '(Bluetooth/сериен)'), 'ok');
-    ['#bText', '#bImg', '#bBoth'].forEach(s => $(s).disabled = false);
+    ready();
   } catch (e) { log('✗ ' + e.message, 'bad'); }
 };
 // --- кирилица в няколко кодови таблици ---
