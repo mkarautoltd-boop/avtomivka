@@ -94,16 +94,17 @@ function enc(s, t) {
   return out;
 }
 const ESC = 0x1B, GS = 0x1D, LF = 0x0A;
-const sample = 'Талон № 7 · Кола вътре+вън 18.00';
+const sample = 'Талон № 7 Кола 18.00 €';
 function textTest() {
-  const L = (label, bytes) => [...enc(label, ''), ...bytes, LF];
-  return new Uint8Array([ESC, 0x40,
-    ...L('1) ', enc(sample, 'cp1251')),
-    ...L('2) ', enc(sample, 'cp866')),
-    ...L('3) ', enc(sample, 'mik')),
-    ESC, 0x74, 17, ...L('4) ', enc(sample, 'cp866')),
-    ESC, 0x74, 46, ...L('5) ', enc(sample, 'cp1251')),
-    ESC, 0x74, 0, LF, LF, LF]);
+  // всеки ред: нулиране + избор на таблица + текст
+  const L = (label, cmd, t) => [ESC, 0x40, ...cmd, ...enc(label, ''), ...enc(sample, t), LF];
+  return new Uint8Array([
+    ...L('1) ', [ESC, 0x75, 17], 'cp1251'),
+    ...L('2) ', [ESC, 0x75, 9], 'cp866'),
+    ...L('3) ', [ESC, 0x74, 9], 'cp866'),
+    ...L('4) ', [ESC, 0x74, 17], 'cp1251'),
+    ...L('5) ', [ESC, 0x52, 0x11], 'cp1251'),
+    ESC, 0x40, LF, LF, LF]);
 }
 $('#bText').onclick = async () => {
   try { const ms = await send(textTest()); log('Текстът е изпратен за ' + ms + ' ms. Кой ред (1–5) излезе на правилна кирилица?'); }
@@ -128,12 +129,19 @@ function talonCanvas() {
   c('Сложете талона зад чистачката', 444, '20px Arial');
   return cv;
 }
+// картинка на ленти по 24 точки (ESC * 33) — поддържа се от Datecs
 function raster(cv) {
-  const W = cv.width, H = cv.height, d = cv.getContext('2d').getImageData(0, 0, W, H).data, bw = W / 8, out = [];
-  for (let y = 0; y < H; y++) for (let bx = 0; bx < bw; bx++) {
-    let v = 0; for (let k = 0; k < 8; k++) { const p = (y * W + bx * 8 + k) * 4; if (d[p] < 140) v |= 0x80 >> k; } out.push(v);
+  const W = cv.width, H = cv.height, d = cv.getContext('2d').getImageData(0, 0, W, H).data, out = [ESC, 0x40, ESC, 0x33, 24];
+  const dot = (x, y) => y < H && d[(y * W + x) * 4] < 140;
+  for (let y0 = 0; y0 < H; y0 += 24) {
+    out.push(ESC, 0x2A, 33, W & 255, W >> 8);
+    for (let x = 0; x < W; x++) for (let k = 0; k < 3; k++) {
+      let v = 0; for (let b = 0; b < 8; b++) if (dot(x, y0 + k * 8 + b)) v |= 0x80 >> b; out.push(v);
+    }
+    out.push(LF);
   }
-  return new Uint8Array([ESC, 0x40, GS, 0x76, 0x30, 0, bw & 255, bw >> 8, H & 255, H >> 8, ...out, LF, LF, LF, LF]);
+  out.push(ESC, 0x32, LF, LF, LF, LF);
+  return new Uint8Array(out);
 }
 $('#bImg').onclick = async () => {
   try { const ms = await send(raster(talonCanvas())); log('Картинката е изпратена за ' + ms + ' ms. Излезе ли талонът четлив?'); }
