@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HELIOS — тест на директен печат</title>
+<style>
+body{margin:0;background:#EFEFF2;color:#121A2E;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#0B0B0D;color:#fff;padding:16px 20px}header b{color:#F2C230;letter-spacing:3px}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+button{display:block;width:100%;border:0;border-radius:12px;padding:16px;font-size:17px;font-weight:700;margin-top:10px;cursor:pointer;background:#F2C230;color:#1A1400}
+button.sec{background:#E5E7EB;color:#121A2E}button:disabled{opacity:.4;cursor:default}
+#log{font:13px/1.55 ui-monospace,Consolas,monospace;white-space:pre-wrap;background:#0B0B0D;color:#E5E7EB;border-radius:10px;padding:12px;min-height:90px;max-height:320px;overflow:auto}
+.ok{color:#16A34A;font-weight:700}.bad{color:#DC2626;font-weight:700}
+small{color:#66728A}
+</style>
+</head>
+<body>
+<header><b>HELIOS</b> · тест на директен печат към DPP-250</header>
+<div class="wrap">
+  <div class="card" id="sup"></div>
+  <div class="card">
+    <button id="bConn">1. Свържи принтера (избери COM порта)</button>
+    <button id="bText" disabled>2. Проба: текст на кирилица (5 реда)</button>
+    <button id="bImg" disabled>3. Проба: талон като картинка</button>
+    <button id="bBoth" class="sec" disabled>4. Отново и двете</button>
+    <small>Пробите не записват нищо в касата.</small>
+  </div>
+  <div class="card"><b>Дневник</b><div id="log"></div></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const log = (m, c) => { const d = document.createElement('div'); if (c) d.className = c; d.textContent = m; $('#log').appendChild(d); $('#log').scrollTop = 1e9; };
+$('#sup').innerHTML = 'serial' in navigator
+  ? '<span class="ok">✓ Chrome поддържа директна връзка с COM порт.</span><br><small>Принтерът трябва да е включен и да се вижда като COM порт в Диспечера на устройствата.</small>'
+  : '<span class="bad">✗ Този браузър не поддържа директна връзка.</span> Отвори страницата в Google Chrome на компютъра.';
+let port = null, writer = null;
+async function send(bytes) {
+  const t0 = performance.now();
+  for (let i = 0; i < bytes.length; i += 4096) await writer.write(bytes.slice(i, i + 4096));
+  return Math.round(performance.now() - t0);
+}
+$('#bConn').onclick = async () => {
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    const i = port.getInfo();
+    log('✓ Свързан. ' + (i.usbVendorId ? 'USB ' + i.usbVendorId.toString(16) + ':' + (i.usbProductId || 0).toString(16) : '(Bluetooth/сериен)'), 'ok');
+    ['#bText', '#bImg', '#bBoth'].forEach(s => $(s).disabled = false);
+  } catch (e) { log('✗ ' + e.message, 'bad'); }
+};
+// --- кирилица в няколко кодови таблици ---
+const UP = 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ', LO = UP.toLowerCase();
+function enc(s, t) {
+  const out = [];
+  for (const ch of s) {
+    const u = ch.charCodeAt(0);
+    if (u < 128) { out.push(u); continue; }
+    if (ch === '№') { out.push(t === 'cp1251' ? 0xB9 : t === 'cp866' ? 0xFC : 0x23); continue; }
+    if (ch === '€') { out.push(t === 'cp1251' ? 0x88 : 0x45); continue; }
+    const i = u - 0x410; if (i < 0 || i > 63) { out.push(63); continue; }
+    if (t === 'cp1251') out.push(0xC0 + i);
+    else if (t === 'cp866') out.push(i < 48 ? 0x80 + i : 0xE0 + i - 48);
+    else out.push(0x80 + i);                     // МИК (български)
+  }
+  return out;
+}
+const ESC = 0x1B, GS = 0x1D, LF = 0x0A;
+const sample = 'Талон № 7 · Кола вътре+вън 18.00';
+function textTest() {
+  const L = (label, bytes) => [...enc(label, ''), ...bytes, LF];
+  return new Uint8Array([ESC, 0x40,
+    ...L('1) ', enc(sample, 'cp1251')),
+    ...L('2) ', enc(sample, 'cp866')),
+    ...L('3) ', enc(sample, 'mik')),
+    ESC, 0x74, 17, ...L('4) ', enc(sample, 'cp866')),
+    ESC, 0x74, 46, ...L('5) ', enc(sample, 'cp1251')),
+    ESC, 0x74, 0, LF, LF, LF]);
+}
+$('#bText').onclick = async () => {
+  try { const ms = await send(textTest()); log('Текстът е изпратен за ' + ms + ' ms. Кой ред (1–5) излезе на правилна кирилица?'); }
+  catch (e) { log('✗ ' + e.message, 'bad'); }
+};
+// --- талон като картинка (кирилицата винаги е правилна) ---
+function talonCanvas() {
+  const W = 384, H = 470, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.fillStyle = '#000';
+  const c = (t, y, f) => { x.font = f; x.textAlign = 'center'; x.fillText(t, W / 2, y); };
+  const r = (a, b, y, f) => { x.font = f; x.textAlign = 'left'; x.fillText(a, 6, y); x.textAlign = 'right'; x.fillText(b, W - 6, y); };
+  const dash = y => { for (let i = 6; i < W - 6; i += 10) x.fillRect(i, y, 6, 2); };
+  c('АВТОМИВКА HELIOS', 30, 'bold 24px Arial');
+  c('ТАЛОН № 7', 72, 'bold 36px Arial');
+  { const d = new Date(), z = n => String(n).padStart(2, '0'); c(z(d.getDate()) + '.' + z(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()), 102, '22px Arial'); } dash(118);
+  c('СВ 9899 ХС', 170, 'bold 46px Arial');
+  r('Кола вътре+вън', '18.00 €', 210, '24px Arial');
+  r('ЗА ПЛАЩАНЕ', '18.00 €', 248, 'bold 28px Arial');
+  r('Плащане', 'при взимане', 282, '22px Arial');
+  r('Мияч', 'Миро', 312, '22px Arial'); r('Касиер', 'Краси', 342, '22px Arial'); dash(360);
+  c('КАРТА HELIOS: 3 от 10', 394, 'bold 22px Arial'); dash(410);
+  c('Сложете талона зад чистачката', 444, '20px Arial');
+  return cv;
+}
+function raster(cv) {
+  const W = cv.width, H = cv.height, d = cv.getContext('2d').getImageData(0, 0, W, H).data, bw = W / 8, out = [];
+  for (let y = 0; y < H; y++) for (let bx = 0; bx < bw; bx++) {
+    let v = 0; for (let k = 0; k < 8; k++) { const p = (y * W + bx * 8 + k) * 4; if (d[p] < 140) v |= 0x80 >> k; } out.push(v);
+  }
+  return new Uint8Array([ESC, 0x40, GS, 0x76, 0x30, 0, bw & 255, bw >> 8, H & 255, H >> 8, ...out, LF, LF, LF, LF]);
+}
+$('#bImg').onclick = async () => {
+  try { const ms = await send(raster(talonCanvas())); log('Картинката е изпратена за ' + ms + ' ms. Излезе ли талонът четлив?'); }
+  catch (e) { log('✗ ' + e.message, 'bad'); }
+};
+$('#bBoth').onclick = async () => { await $('#bText').onclick(); await $('#bImg').onclick(); };
+</script>
+</body>
+</html>
