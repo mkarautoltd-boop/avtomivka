@@ -429,7 +429,8 @@ let REP = null;
 const pad2 = x => String(x).padStart(2, '0');
 const localEnv = { today: todayStr, now: () => { const d = new Date(); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }, uid: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7) };
 const newCid = () => 'c' + localEnv.uid();
-const cred = () => ({ login: S.uid, pass: S.pin });
+const devTok = () => load('hl_dev') || '';
+const cred = () => ({ login: S.uid, pass: S.pin, dev: devTok() });
 const cashierMode = () => !!(S.user && S.user.role === 'cashier');
 const IDB = (() => {
   let dbp = null;
@@ -551,7 +552,7 @@ function rcRestore() {
   try { const r = JSON.parse(load('hl_rc') || 'null'); if (r && r.u === S.uid) Object.keys(r.o).forEach(k => { if (!RCACHE[k]) RCACHE[k] = { t: 0, j: r.o[k] }; }); } catch (e) {}
 }
 // след запис: засегнатите екрани се теглят наново, останалите се показват веднага и се освежават отзад
-const RC_AFFECT = { saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll'] };
+const RC_AFFECT = { addDevice: ['getSettings'], removeDevice: ['getSettings'], saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll'] };
 function rcAfterWrite(action) {
   const aff = RC_AFFECT[action];
   Object.keys(RCACHE).forEach(k => { if (!aff || aff.indexOf(k.split('|')[1]) >= 0) delete RCACHE[k]; else RCACHE[k].t = 0; });
@@ -645,7 +646,7 @@ async function doLogin(pass, login, remember) {
   busy(true, 'Влизане…');
   try {
     let j = null, offline = false;
-    try { j = await post({ action: 'login', login, pass, cid: newCid() }); }
+    try { j = await post({ action: 'login', login, pass, cid: newCid(), dev: devTok() }); }
     catch (e) { if (e instanceof AppError) throw e; offline = true; }
     if (j && !j.ok) throw new Error(j.error || 'Грешка');
     const h = credHash(login, pass), all = creds();
@@ -653,6 +654,7 @@ async function doLogin(pass, login, remember) {
       const c = all[login];
       if (!c) throw new Error('Няма интернет. Без интернет може да влезе само касиер, който вече е влизал на тази каса.');
       if (c.h !== h) throw new Error('Грешно потребителско име или парола');
+      if (c.boot.devOnly && !devTok()) throw new Error('Касиерът може да влиза само от компютъра на мивката');
       j = c.boot;
     } else if (j.user.role === 'cashier') { all[login] = { h, boot: j }; store('hl_creds', JSON.stringify(all)); }
     else if (j.user.role === 'admin' && remember) store('hl_aboot', JSON.stringify({ u: login, h, boot: j }));
@@ -683,6 +685,7 @@ async function fastStart(login, pass, remember) {
   let a = null; try { a = JSON.parse(load('hl_aboot') || 'null'); } catch (e) {}
   const boot = c && c.h === h ? c.boot : a && a.u === login && a.h === h ? a.boot : null;
   if (!boot || !boot.user || ['cashier', 'admin'].indexOf(boot.user.role) < 0) return false;
+  if (boot.devOnly && !devTok()) return false;
   if (boot.user.role === 'cashier') { await openReplica(); if (!REP) return false; }
   Object.assign(S, { user: boot.user, prices: boot.prices, washers: boot.washers, firms: boot.firms || [], talonName: boot.talonName || 'АВТОМИВКА', address: boot.address || '', clientTalon: !!boot.clientTalon });
   if (boot.user.role === 'admin') rcRestore();
@@ -702,11 +705,11 @@ async function bgLogin(login, pass, h, role) {
       const j = await cashierWrite('login', {});
       if (j && j.user) { const all = creds(); all[login] = { h, boot: j }; store('hl_creds', JSON.stringify(all)); fresh(j); }
       if (same() && !NET.off) { if (NET.queue.length) await flushQueue(); else { await syncNow(false); } refreshCashierKpis(); }
-    } catch (e) { if (e instanceof AppError || /парола|спрян|права|потребител/i.test(e.message)) bad(e.message); }
+    } catch (e) { if (e instanceof AppError || /парола|спрян|права|потребител|компютъра/i.test(e.message)) bad(e.message); }
     return;
   }
   try {
-    const j = await post({ action: 'login', login, pass, cid: newCid() });
+    const j = await post({ action: 'login', login, pass, cid: newCid(), dev: devTok() });
     if (!j.ok) return bad(j.error);
     if (load('hl_aboot')) store('hl_aboot', JSON.stringify({ u: login, h, boot: j }));
     fresh(j);
@@ -1684,6 +1687,7 @@ async function tabSet() {
       <label class="l" for="lMax">Подаръкът е до стойност</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lMax" inputmode="decimal" value="${j.loyalty.maxValue}" style="width:110px"><b>€</b><span class="muted">над нея клиентът доплаща</span></div>
       <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Миячът получава заплата и за подаръка</b><div class="muted">Смята се по нормалната цена, за да не губи миячът.</div></span><input type="checkbox" class="sw" id="lPay" ${j.loyalty.payWasher ? 'checked' : ''}></label>
       <button class="btn green" id="lSave">Запази картата</button></div>
+    <div class="sec-t">Компютър на касата</div><div class="card" id="devCard">${devHtml(j.devices || [])}</div>
     <div class="sec-t">Талон</div><div class="card">
       <label class="l" for="sName" style="margin-top:0">Име на автомивката (горе на талона)</label><input class="f" id="sName" value="${esc(j.talonName)}">
       <label class="l" for="sAddr">Адрес и телефон (на талона за клиента)</label><input class="f" id="sAddr" value="${esc(j.address || '')}">
@@ -1698,6 +1702,7 @@ async function tabSet() {
     [S.talonName, S.clientTalon, S.address] = keep;
   };
   $('#sName').oninput = prev; $('#sAddr').oninput = prev; $('#sClient').onchange = prev; prev();
+  devBind();
   $('#uNew').onclick = () => userForm(null, false);
   $('#pNew').onclick = () => priceForm(null);
   document.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => /^tmp/.test(b.dataset.pe) ? toast('Изчакай секунда — услугата се записва', false) : priceForm(S.priceList.find(p => p.id === b.dataset.pe)));
@@ -1764,6 +1769,28 @@ function userForm(u, cashierMode) {
       if (cashierMode) { await refreshCashierKpis(); tabPay(); } else tabSet();
     } catch (e) { toast(e.message, false); ob.disabled = false; ob.textContent = 'Запази'; }
   };
+}
+// касиерите влизат само от разрешените компютри (ако има поне един)
+const devHash = () => devTok() ? HELIOS.sha256('dev|' + devTok()) : '';
+function devHtml(ds) {
+  const me = devHash(), here = ds.some(d => d.h === me);
+  return (ds.length ? `<p class="muted" style="margin:0 0 6px">Касиерите могат да влизат <b>само от тези компютри</b>. Миячите и собственикът — от всяко устройство.</p>` +
+      ds.map(d => `<div class="row"><span><b>🖥 ${esc(d.name)}</b>${d.h === me ? ' <span class="badge ok">този компютър</span>' : ''}<div class="muted">разрешен на ${esc(bgDate(d.date))}</div></span>
+        <button class="btn sm sec" data-devrm="${esc(d.id)}">Махни</button></div>`).join('')
+    : `<p class="muted" style="margin:0 0 6px">Сега касиерите могат да влизат <b>от всяко устройство</b>. Отворете приложението на компютъра на мивката, влезте като собственик и натиснете бутона — след това касиерите ще влизат само оттам.</p>`) +
+    (here ? '' : `<label class="l" for="devName">Име на този компютър</label><input class="f" id="devName" value="Касата на мивката" maxlength="40">
+      <button class="btn teal" id="devAdd">🖥 Разреши този компютър за касата</button>`);
+}
+function devBind() {
+  if ($('#devAdd')) $('#devAdd').onclick = async () => {
+    let tok = devTok();
+    if (!tok) { const a = new Uint8Array(16); crypto.getRandomValues(a); tok = [...a].map(x => x.toString(16).padStart(2, '0')).join(''); store('hl_dev', tok); }
+    try { await api('addDevice', { token: tok, name: $('#devName').value }); toast('Този компютър е разрешен за касата'); tabSet(); } catch (e) { toast(e.message, false); }
+  };
+  document.querySelectorAll('[data-devrm]').forEach(b => b.onclick = async () => {
+    if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Натисни пак'; b.classList.add('red'); return; }
+    try { await api('removeDevice', { id: b.dataset.devrm }); toast('Компютърът е махнат'); tabSet(); } catch (e) { toast(e.message, false); }
+  });
 }
 let UQ = Promise.resolve(), UQn = 0;
 function userWrite(d) {
