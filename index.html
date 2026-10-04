@@ -550,6 +550,13 @@ function rcSave() {
 function rcRestore() {
   try { const r = JSON.parse(load('hl_rc') || 'null'); if (r && r.u === S.uid) Object.keys(r.o).forEach(k => { if (!RCACHE[k]) RCACHE[k] = { t: 0, j: r.o[k] }; }); } catch (e) {}
 }
+// след запис: засегнатите екрани се теглят наново, останалите се показват веднага и се освежават отзад
+const RC_AFFECT = { saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll'] };
+function rcAfterWrite(action) {
+  const aff = RC_AFFECT[action];
+  Object.keys(RCACHE).forEach(k => { if (!aff || aff.indexOf(k.split('|')[1]) >= 0) delete RCACHE[k]; else RCACHE[k].t = 0; });
+  rcSave();
+}
 function prefetchOwner() {
   const d = todayStr(), m = d.slice(0, 7);
   [['report', { date: d }], ['shifts', { date: d }], ['getSettings', {}], ['users', {}], ['pricesAll', {}], ['firmsAll', {}], ['monthReport', { month: m }], ['firmMonth', { month: m }], ['clients', { days: 30 }]]
@@ -564,8 +571,9 @@ async function api(action, data = {}) {
     try { const j = await p; RCACHE[key] = { t: Date.now(), j }; rcSave(); return clone(j); } finally { delete RBUSY[key]; }
   }
   if (S.user && S.user.role === 'admin' && HELIOS.WRITE.indexOf(action) >= 0) {
-    Object.keys(RCACHE).forEach(k => delete RCACHE[k]);
-    try { return await serverCall(action, data); } finally { Object.keys(RCACHE).forEach(k => delete RCACHE[k]); }
+    busy(true, 'Записване…');
+    try { const r = await serverCall(action, data); rcAfterWrite(action); return r; }
+    finally { busy(false); }
   }
   if (cashierMode() && REP) {
     if (HELIOS.LOCAL_READ.indexOf(action) >= 0) return localRun(action, data);
@@ -1639,7 +1647,7 @@ async function tabSet() {
       if (i >= 0 && j >= 0 && j < list.length) { const t = list[i]; list[i] = list[j]; list[j] = t; }
     });
   });
-  document.querySelectorAll('[data-ue]').forEach(b => b.onclick = () => userForm(S.userList.find(u => u.id === b.dataset.ue), false));
+  document.querySelectorAll('[data-ue]').forEach(b => b.onclick = () => /^tmp/.test(b.dataset.ue) ? toast('Изчакай секунда — човекът се записва', false) : userForm(S.userList.find(u => u.id === b.dataset.ue), false));
   $('#lSave').onclick = async () => {
     try { await api('saveLoyalty', { on: $('#lOn').checked, every: $('#lEv').value, maxValue: $('#lMax').value, payWasher: $('#lPay').checked }); toast('Картата за лоялност е запазена'); tabSet(); }
     catch (e) { toast(e.message, false); }
@@ -1674,13 +1682,48 @@ function userForm(u, cashierMode) {
   draw();
   $('#uNo').onclick = () => o.remove();
   $('#uOk').onclick = async () => {
+    if (!cashierMode && S.user.role === 'admin') {
+      const d = { id: u ? u.id : '', role: st.role, name: $('#uName').value.trim(), username: $('#uLogin').value.trim().toLowerCase(), newPass: $('#uPass').value,
+        active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '' };
+      const list = S.userList || [], other = x => x.id !== d.id;
+      if (!d.name) return toast('Въведи име', false);
+      if (!/^[a-z0-9._-]{3,20}$/.test(d.username)) return toast('Потребителското име: 3–20 знака, само латиница, цифри, точка, тире', false);
+      if (list.some(x => other(x) && x.username === d.username)) return toast('Това потребителско име е заето', false);
+      if (list.some(x => other(x) && x.name.toLowerCase() === d.name.toLowerCase())) return toast('Вече има човек с това име', false);
+      if ((!u && d.newPass.length < 6) || (u && d.newPass && d.newPass.length < 6)) return toast('Паролата трябва да е поне 6 знака', false);
+      if (d.role === 'cashier' && d.dayWage !== '' && !(Number(d.dayWage) >= 0 && Number(d.dayWage) <= 500)) return toast('Невалиден надник', false);
+      o.remove(); userWrite(d); return;
+    }
+    const ob = $('#uOk'); if (ob.disabled) return; ob.disabled = true; ob.textContent = 'Записване…';
     try {
       await api('saveUser', { id: u ? u.id : '', role: st.role, name: $('#uName').value, username: $('#uLogin').value, newPass: $('#uPass').value,
         active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '' });
       o.remove(); toast(cashierMode ? 'Миячът е добавен' : 'Профилът е запазен');
       if (cashierMode) { await refreshCashierKpis(); tabPay(); } else tabSet();
-    } catch (e) { toast(e.message, false); }
+    } catch (e) { toast(e.message, false); ob.disabled = false; ob.textContent = 'Запази'; }
   };
+}
+let UQ = Promise.resolve(), UQn = 0;
+function userWrite(d) {
+  const key = S.uid + '|users|{}', c = RCACHE[key];
+  if (c) {
+    const list = c.j.users, e = d.id && list.find(x => x.id === d.id);
+    const rec = { name: d.name, username: d.username, role: d.role, active: d.active, canAddWashers: d.role === 'cashier' && d.canAddWashers };
+    if (d.role === 'cashier') rec.dayWage = d.dayWage === '' ? (e ? e.dayWage : 0) : Number(d.dayWage);
+    if (e) Object.assign(e, rec); else list.push(Object.assign({ id: 'tmp' + Date.now(), dayWage: 0 }, rec));
+    c.t = Date.now() + 3600e3;
+    S.washers = list.filter(x => x.role === 'washer' && x.active).map(x => x.name);
+  }
+  if (S.tab === 'set') tabSet();
+  UQn++;
+  UQ = UQ.then(() => serverCall('saveUser', d)).then(() => {
+    toast(d.id ? 'Профилът е запазен' : d.name + ' е добавен');
+    Object.keys(RCACHE).forEach(k => { if (k !== key) RCACHE[k].t = 0; });
+  }).catch(e => {
+    toast('Не се записа: ' + e.message, false); delete RCACHE[key]; if (S.tab === 'set') tabSet();
+  }).finally(() => {
+    if (--UQn === 0 && RCACHE[key]) { RCACHE[key].t = 0; refreshBg(key, 'users', {}); }
+  });
 }
 
 // услуга в ценоразписа — само собственикът
