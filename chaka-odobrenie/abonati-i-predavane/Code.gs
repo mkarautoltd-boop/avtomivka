@@ -28,7 +28,7 @@ var HELIOS = (function () {
   // действия, които касата може да направи и без интернет
   var OFFLINE_WRITE = ['addKasa', 'payKasa', 'handover', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login'];
   var LOCAL_READ = ['myDay', 'payroll', 'shiftState', 'loyalty'];
-  var WRITE = OFFLINE_WRITE.concat(['addDevice', 'removeDevice', 'saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa']);
+  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa']);
 
   var r2 = function (x) { return Math.round((+x || 0) * 100) / 100; };
   var num = function (v) { return r2(Number(String(v == null ? '' : v).replace(',', '.')) || 0); };
@@ -190,7 +190,7 @@ var HELIOS = (function () {
         case 'login':
           if (u.role === 'cashier' && !db.logins.some(function (x) { return x.name === u.name && x.date === T; }))
             db.logins.push({ id: p.cid || uid('l'), name: u.name, date: T });
-          return { user: user, talonName: S.talonName, address: S.address, clientTalon: !!S.clientTalon, prices: activeP(), washers: washers(), firms: activeFirms(), today: T, devOnly: !!(S.devices || []).length };
+          return { user: user, talonName: S.talonName, address: S.address, clientTalon: !!S.clientTalon, prices: activeP(), washers: washers(), firms: activeFirms(), today: T };
 
         case 'users':
           if (u.role === 'admin') return { users: db.users.map(noPass) };
@@ -222,17 +222,6 @@ var HELIOS = (function () {
           return {};
         }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
-        case 'addDevice': {
-          need(u, ['admin']);
-          var tok = String(p.token || ''); if (tok.length < 16) throw new Error('Невалиден компютър');
-          var dh = sha256('dev|' + tok), dn = String(p.name || '').trim().slice(0, 40) || 'Касата на мивката';
-          S.devices = (S.devices || []).filter(function (d) { return d.h !== dh; }).concat([{ id: uid('d'), name: dn, h: dh, date: T }]);
-          return { devices: S.devices };
-        }
-        case 'removeDevice':
-          need(u, ['admin']);
-          S.devices = (S.devices || []).filter(function (d) { return d.id !== p.id; });
-          return { devices: S.devices };
         case 'saveLoyalty': {
           need(u, ['admin']);
           var every = Math.round(Number(p.every) || 0), maxValue = num(p.maxValue);
@@ -643,10 +632,6 @@ var HELIOS = (function () {
     var login = String(p.login || '').trim().toLowerCase();
     var u = db.users.filter(function (x) { return x.active && x.username === login; })[0];
     if (!u || !u.hash || passHash(u.salt, String(p.pass || '')) !== u.hash) throw new Error('Грешно потребителско име или парола');
-    // касиерът влиза само от разрешен компютър (ако собственикът е разрешил поне един)
-    var ds = (db.settings && db.settings.devices) || [];
-    if (u.role === 'cashier' && ds.length && !(p.dev && ds.some(function (d) { return d.h === sha256('dev|' + String(p.dev)); })))
-      throw new Error('Касиерът може да влиза само от компютъра на мивката');
     return u;
   }
   function serve(p, store, env) {
