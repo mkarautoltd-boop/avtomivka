@@ -611,7 +611,7 @@ const ROLE = { admin: 'Собственик', cashier: 'Касиер', washer: '
 // вход с потребителско име и парола — никой не вижда кои профили има
 function showLogin() {
   clearInterval(timer);
-  const last = S.loginMsg ? '' : (load('mw_last') || '');
+  const qu = new URLSearchParams(location.search).get('u'), last = S.loginMsg ? '' : (qu || load('mw_last') || '');
   $('#root').innerHTML = `<div class="login"><div class="hero"><small>АВТОМИВКА</small><div class="big">HELIOS</div><span>EXCLUSIVE CARWASH &amp; DETAILING CENTER</span></div>
     <form class="lbody" id="lf" autocomplete="on">
       ${S.loginMsg ? `<div style="width:100%;background:rgba(242,194,48,.15);border:1.5px solid var(--teal);border-radius:12px;padding:12px;margin:6px 0 4px;font-size:14px">${esc(S.loginMsg)}</div>` : ''}
@@ -1672,8 +1672,10 @@ function userForm(u, cashierMode) {
     <div class="muted" style="margin-top:6px">Кажете паролата на човека лично. Той не може да я смени сам.</div>
     <div id="uCan"></div>
     ${u && u.role !== 'admin' ? `<label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><b>Активен</b><input type="checkbox" class="sw" id="uAct" ${u.active ? 'checked' : ''}></label><div class="muted">Спрян профил не може да влиза. Историята му остава.</div>` : ''}
+    ${u && u.role !== 'admin' ? `<button class="btn sec" id="uLink" type="button">📨 Изпрати линк за вход</button>` : ''}
     <div style="display:flex;gap:8px"><button class="btn sec" id="uNo">Отказ</button><button class="btn green" id="uOk">Запази</button></div></div>`;
   document.body.appendChild(o);
+  if ($('#uLink')) $('#uLink').onclick = () => { const pw = $('#uPass').value; o.remove(); sendLink(u, pw); };
   const draw = () => {
     document.querySelectorAll('#uRole button').forEach(b => b.classList.toggle('on', b.dataset.r === st.role));
     $('#uCan').innerHTML = st.role === 'cashier' && !cashierMode ? `<label class="l" for="uWage">Надник за ден (€)</label><input class="f money" id="uWage" inputmode="decimal" value="${u && u.dayWage != null ? u.dayWage : 55}" style="width:140px"><label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Може да добавя миячи</b><div class="muted">Касиерът ще има бутон „Нов мияч“.</div></span><input type="checkbox" class="sw" id="uCanW" ${u && u.canAddWashers ? 'checked' : ''}></label>` : '';
@@ -1703,6 +1705,30 @@ function userForm(u, cashierMode) {
     } catch (e) { toast(e.message, false); ob.disabled = false; ob.textContent = 'Запази'; }
   };
 }
+// линк за вход: готово съобщение с линка, потребителя и паролата — за Viber, SMS или копиране
+function sendLink(u, pw) {
+  const url = location.origin + location.pathname + '?u=' + encodeURIComponent(u.username);
+  const first = String(u.name).split(' ')[0], app = u.role === 'washer' ? 'приложението за миячи на автомивката' : 'касата на автомивката';
+  const build = p => `Здравей, ${first}! Това е линкът за ${app}:\n${url}\n\nПотребител: ${u.username}\nПарола: ${p || ''}\n\nОтвори линка в Chrome и влез. След това ⋮ → „Добави към началния екран“, за да е като приложение.`;
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Линк за вход"><h2 style="font-size:18px">📨 Линк за вход</h2>
+    <div class="muted"><b>${esc(u.name)}</b> · ${esc(u.username)} · ${ROLE[u.role] || ''}</div>
+    <label class="l" for="lkP">Парола</label><input class="f" id="lkP" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" value="${esc(pw || '')}" placeholder="Напиши паролата му">
+    <div class="muted" style="margin-top:4px">Паролата се добавя сама в съобщението.</div>
+    <label class="l" for="lkM">Съобщение</label><textarea class="f" id="lkM" rows="8" style="width:100%;box-sizing:border-box;font-size:14px;line-height:1.4;resize:vertical">${esc(build(pw))}</textarea>
+    <button class="btn teal" id="lkCopy" type="button">Копирай съобщението</button>
+    <div style="display:flex;gap:8px"><a class="btn sec" id="lkViber" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Viber</a><a class="btn sec" id="lkSms" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">SMS</a></div>
+    <button class="btn sec" id="lkX" type="button">Затвори</button></div>`;
+  document.body.appendChild(o);
+  const m = $('#lkM'), links = () => { const t = encodeURIComponent(m.value); $('#lkViber').href = 'viber://forward?text=' + t; $('#lkSms').href = 'sms:?&body=' + t; };
+  $('#lkP').oninput = () => { m.value = build($('#lkP').value.trim()); links(); };
+  m.oninput = links; links();
+  $('#lkCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText(m.value); } catch (e) { m.select(); document.execCommand('copy'); }
+    toast('Съобщението е копирано — постави го във Viber');
+  };
+  $('#lkX').onclick = () => { o.remove(); if (S.tab === 'set') tabSet(); };
+}
 let UQ = Promise.resolve(), UQn = 0;
 function userWrite(d) {
   const key = S.uid + '|users|{}', c = RCACHE[key];
@@ -1715,6 +1741,7 @@ function userWrite(d) {
     S.washers = list.filter(x => x.role === 'washer' && x.active).map(x => x.name);
   }
   if (S.tab === 'set') tabSet();
+  if (!d.id) sendLink({ name: d.name, username: d.username, role: d.role }, d.newPass);
   UQn++;
   UQ = UQ.then(() => serverCall('saveUser', d)).then(() => {
     toast(d.id ? 'Профилът е запазен' : d.name + ' е добавен');
