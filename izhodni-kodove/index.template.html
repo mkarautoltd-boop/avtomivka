@@ -535,9 +535,20 @@ function ownerCacheable(action) { return S.user && S.user.role === 'admin' && HE
 function refreshBg(key, action, data) {
   if (RBUSY[key]) return; RBUSY[key] = 1;
   serverCall(action, data).then(j => {
-    const old = RCACHE[key]; RCACHE[key] = { t: Date.now(), j };
+    const old = RCACHE[key]; if (old && old.t > Date.now()) return; RCACHE[key] = { t: Date.now(), j }; rcSave();
     if (old && JSON.stringify(old.j) !== JSON.stringify(j) && !document.querySelector('.modal') && S.render) S.render();
   }).catch(() => {}).finally(() => { delete RBUSY[key]; });
+}
+let rcT = 0;
+function rcSave() {
+  if (!load('hl_aboot')) return;
+  clearTimeout(rcT); rcT = setTimeout(() => {
+    const o = {}; Object.keys(RCACHE).forEach(k => { if (k.indexOf(S.uid + '|') === 0) o[k] = RCACHE[k].j; });
+    try { localStorage.setItem('hl_rc', JSON.stringify({ u: S.uid, o })); } catch (e) {}
+  }, 1500);
+}
+function rcRestore() {
+  try { const r = JSON.parse(load('hl_rc') || 'null'); if (r && r.u === S.uid) Object.keys(r.o).forEach(k => { if (!RCACHE[k]) RCACHE[k] = { t: 0, j: r.o[k] }; }); } catch (e) {}
 }
 function prefetchOwner() {
   const d = todayStr(), m = d.slice(0, 7);
@@ -550,7 +561,7 @@ async function api(action, data = {}) {
     if (c) { if (Date.now() - c.t > 5000) refreshBg(key, action, data); return clone(c.j); }
     if (RBUSY[key]) await RBUSY[key];
     const p = serverCall(action, data); RBUSY[key] = p.catch(() => {});
-    try { const j = await p; RCACHE[key] = { t: Date.now(), j }; return clone(j); } finally { delete RBUSY[key]; }
+    try { const j = await p; RCACHE[key] = { t: Date.now(), j }; rcSave(); return clone(j); } finally { delete RBUSY[key]; }
   }
   if (S.user && S.user.role === 'admin' && HELIOS.WRITE.indexOf(action) >= 0) {
     Object.keys(RCACHE).forEach(k => delete RCACHE[k]);
@@ -621,6 +632,7 @@ async function doLogin(pass, login, remember) {
   login = String(login || '').trim().toLowerCase();
   S.pin = pass; S.uid = login;
   if (!login || !pass) { toast('Въведи потребителско име и парола', false); return; }
+  if (await fastStart(login, pass, remember)) return;
   const btn = $('#lgo'); if (btn) btn.disabled = true;
   busy(true, 'Влизане…');
   try {
@@ -635,6 +647,7 @@ async function doLogin(pass, login, remember) {
       if (c.h !== h) throw new Error('Грешно потребителско име или парола');
       j = c.boot;
     } else if (j.user.role === 'cashier') { all[login] = { h, boot: j }; store('hl_creds', JSON.stringify(all)); }
+    else if (j.user.role === 'admin' && remember) store('hl_aboot', JSON.stringify({ u: login, h, boot: j }));
     Object.assign(S, { user: j.user, prices: j.prices, washers: j.washers, firms: j.firms || [], talonName: j.talonName || 'АВТОМИВКА', address: j.address || '', clientTalon: !!j.clientTalon });
     if (j.user.role === 'cashier') {
       await openReplica();
@@ -657,7 +670,41 @@ async function doLogin(pass, login, remember) {
     toast(e.message, false);
   } finally { busy(false); if ($('#lgo')) $('#lgo').disabled = false; }
 }
-function logout() { store('mw_pin', null); store('mw_uid', null); S.pin = ''; S.uid = ''; S.user = null; showLogin(); }
+async function fastStart(login, pass, remember) {
+  const h = credHash(login, pass), c = creds()[login];
+  let a = null; try { a = JSON.parse(load('hl_aboot') || 'null'); } catch (e) {}
+  const boot = c && c.h === h ? c.boot : a && a.u === login && a.h === h ? a.boot : null;
+  if (!boot || !boot.user || ['cashier', 'admin'].indexOf(boot.user.role) < 0) return false;
+  if (boot.user.role === 'cashier') { await openReplica(); if (!REP) return false; }
+  Object.assign(S, { user: boot.user, prices: boot.prices, washers: boot.washers, firms: boot.firms || [], talonName: boot.talonName || 'АВТОМИВКА', address: boot.address || '', clientTalon: !!boot.clientTalon });
+  if (boot.user.role === 'admin') rcRestore();
+  store('mw_last', login); S.loginMsg = '';
+  if (remember) { store('mw_pin', pass); store('mw_uid', login); }
+  route();
+  bgLogin(login, pass, h, boot.user.role);
+  return true;
+}
+// проверка на паролата и свежи данни — отзад, без да спира работата
+async function bgLogin(login, pass, h, role) {
+  const same = () => S.user && S.uid === login && S.pin === pass;
+  const fresh = j => { if (!same() || !j || !j.user) return; Object.assign(S, { user: Object.assign(S.user, j.user), prices: j.prices || S.prices, washers: j.washers || S.washers, firms: j.firms || S.firms, talonName: j.talonName || S.talonName, address: j.address || '', clientTalon: !!j.clientTalon }); };
+  const bad = msg => { if (!same()) return; logout(); toast(msg || 'Влез отново', false); };
+  if (role === 'cashier') {
+    try {
+      const j = await cashierWrite('login', {});
+      if (j && j.user) { const all = creds(); all[login] = { h, boot: j }; store('hl_creds', JSON.stringify(all)); fresh(j); }
+      if (same() && !NET.off) { if (NET.queue.length) await flushQueue(); else { await syncNow(false); } refreshCashierKpis(); }
+    } catch (e) { if (e instanceof AppError || /парола|спрян|права|потребител/i.test(e.message)) bad(e.message); }
+    return;
+  }
+  try {
+    const j = await post({ action: 'login', login, pass, cid: newCid() });
+    if (!j.ok) return bad(j.error);
+    if (load('hl_aboot')) store('hl_aboot', JSON.stringify({ u: login, h, boot: j }));
+    fresh(j);
+  } catch (e) { if (e instanceof AppError) bad(e.message); }
+}
+function logout() { store('hl_aboot', null); store('hl_rc', null); store('mw_pin', null); store('mw_uid', null); S.pin = ''; S.uid = ''; S.user = null; showLogin(); }
 function route() {
   const r = S.user.role;
   Object.assign(F, { plate: '', svcs: [], washer: '', pay: null, autoFirm: false });
@@ -1583,9 +1630,14 @@ async function tabSet() {
   $('#sName').oninput = prev; $('#sAddr').oninput = prev; $('#sClient').onchange = prev; prev();
   $('#uNew').onclick = () => userForm(null, false);
   $('#pNew').onclick = () => priceForm(null);
-  document.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => priceForm(S.priceList.find(p => p.id === b.dataset.pe)));
-  document.querySelectorAll('[data-mv]').forEach(b => b.onclick = async () => {
-    try { const r = await api('movePrice', { id: b.dataset.id, dir: b.dataset.mv }); S.prices = r.prices; tabSet(); } catch (e) { toast(e.message, false); }
+  document.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => /^tmp/.test(b.dataset.pe) ? toast('Изчакай секунда — услугата се записва', false) : priceForm(S.priceList.find(p => p.id === b.dataset.pe)));
+  document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
+    const id = b.dataset.id, dir = b.dataset.mv;
+    if (/^tmp/.test(id)) return toast('Изчакай секунда — услугата се записва', false);
+    priceWrite('movePrice', { id, dir }, list => {
+      const i = list.findIndex(x => x.id === id), j = i + (dir === 'up' ? -1 : 1);
+      if (i >= 0 && j >= 0 && j < list.length) { const t = list[i]; list[i] = list[j]; list[j] = t; }
+    });
   });
   document.querySelectorAll('[data-ue]').forEach(b => b.onclick = () => userForm(S.userList.find(u => u.id === b.dataset.ue), false));
   $('#lSave').onclick = async () => {
@@ -1632,6 +1684,21 @@ function userForm(u, cashierMode) {
 }
 
 // услуга в ценоразписа — само собственикът
+let PQ = Promise.resolve(), PQn = 0;
+function priceWrite(action, data, local, okMsg) {
+  const key = S.uid + '|pricesAll|{}', c = RCACHE[key];
+  if (c) { local(c.j.prices); c.t = Date.now() + 3600e3; S.prices = c.j.prices.filter(x => x.active); }
+  if (S.tab === 'set') tabSet();
+  PQn++;
+  PQ = PQ.then(() => serverCall(action, data)).then(r => {
+    if (r.prices) S.prices = r.prices; if (okMsg) toast(okMsg);
+    Object.keys(RCACHE).forEach(k => { if (k !== key) RCACHE[k].t = 0; });   // другите екрани се освежават отзад
+  }).catch(e => {
+    toast(e.message, false); delete RCACHE[key]; if (S.tab === 'set') tabSet();
+  }).finally(() => {
+    if (--PQn === 0 && RCACHE[key]) { RCACHE[key].t = 0; refreshBg(key, 'pricesAll', {}); }
+  });
+}
 function priceForm(p) {
   const o = document.createElement('div'); o.className = 'modal';
   o.innerHTML = `<div class="card" role="dialog" aria-label="Услуга"><h2 style="font-size:18px">${p ? 'Промяна на услуга' : 'Нова услуга'}</h2>
@@ -1642,11 +1709,16 @@ function priceForm(p) {
     <div style="display:flex;gap:8px"><button class="btn sec" id="pNo">Отказ</button><button class="btn green" id="pOk">Запази</button></div></div>`;
   document.body.appendChild(o);
   $('#pNo').onclick = () => o.remove();
-  $('#pOk').onclick = async () => {
-    try {
-      const r = await api('savePrice', { id: p ? p.id : '', name: $('#pN').value, price: $('#pP').value, active: $('#pA') ? $('#pA').checked : true });
-      S.prices = r.prices; o.remove(); toast('Ценоразписът е обновен'); tabSet();
-    } catch (e) { toast(e.message, false); }
+  $('#pOk').onclick = () => {
+    const name = $('#pN').value.trim(), price = Number(String($('#pP').value).replace(',', '.')), active = $('#pA') ? $('#pA').checked : true;
+    if (!name) return toast('Въведи име на услугата', false);
+    if (!(price > 0)) return toast('Въведи цена по-голяма от 0', false);
+    if ((S.priceList || []).some(x => x.id !== (p && p.id) && x.name.toLowerCase() === name.toLowerCase())) return toast('Вече има услуга с това име', false);
+    o.remove();
+    priceWrite('savePrice', { id: p ? p.id : '', name, price, active }, list => {
+      const e = p && list.find(x => x.id === p.id);
+      if (e) Object.assign(e, { name, price, active }); else list.push({ id: 'tmp' + Date.now(), name, price, active: true });
+    }, 'Ценоразписът е обновен');
   };
 }
 
