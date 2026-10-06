@@ -7,7 +7,10 @@ h = open(os.path.join(R, 'index.html'), encoding='utf8').read()
 # ---- dist ----
 for f in ['engine.js', 'sw.js', 'manifest.json', 'icon-192.png', 'icon-512.png']:
     shutil.copy(os.path.join(R, 'src', f), os.path.join(R, 'dist', f))
-open(os.path.join(R, 'dist', 'index.html'), 'w', encoding='utf8').write(h)
+# версия на логиката в адреса — Chrome тегли новата заедно с новия екран (без стар кеш)
+import hashlib
+ev = hashlib.sha1(src('engine.js').encode('utf8')).hexdigest()[:8]
+open(os.path.join(R, 'dist', 'index.html'), 'w', encoding='utf8').write(h.replace('<script src="engine.js"></script><!--ENGINE-->', '<script src="engine.js?v=' + ev + '"></script><!--ENGINE-->'))
 open(os.path.join(R, 'dist', 'Code.gs'), 'w', encoding='utf8').write(src('engine.js') + '\n' + src('server.gs.js'))
 # ---- demo ----
 d = h
