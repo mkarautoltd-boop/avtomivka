@@ -1816,7 +1816,7 @@ function userWrite(d) {
   if (!d.id) sendLink({ name: d.name, username: d.username, role: d.role }, d.newPass);
   UQn++;
   UQ = UQ.then(() => serverCall('saveUser', d)).then(() => {
-    toast(d.id ? 'Профилът е запазен' : d.name + ' е добавен');
+    toast(d.id ? 'Профилът е запазен' : d.name + ' — профилът е създаден');
     Object.keys(RCACHE).forEach(k => { if (k !== key) RCACHE[k].t = 0; });
   }).catch(e => {
     toast('Не се записа: ' + e.message, false); delete RCACHE[key]; if (S.tab === 'set') tabSet();

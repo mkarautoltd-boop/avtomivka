@@ -15,7 +15,7 @@ const URL = 'http://localhost:8787/';
   for (const [role, name, un, pw] of [['cashier', 'Мария', 'maria', 'maria123'], ['washer', 'Иван', 'ivan', 'ivan1234'], ['washer', 'Георги', 'georgi', 'georgi12']]) {
     await p.click('#uNew'); await p.waitForTimeout(200);
     await p.click(`#uRole [data-r=${role}]`); await p.fill('#uName', name); await p.fill('#uLogin', un); await p.fill('#uPass', pw);
-    await p.click('#uOk'); await p.waitForTimeout(700); console.log('user', name, await toast());
+    await p.click('#uOk'); await p.waitForTimeout(300); if (await p.$('#lkX')) await p.click('#lkX'); await p.waitForTimeout(500); console.log('user', name, await toast());
   }
   await p.click('#out'); await p.waitForTimeout(300);
   // 2. касиер онлайн
