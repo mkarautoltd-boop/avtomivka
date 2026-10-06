@@ -731,7 +731,7 @@ function talonHtml(j, copy) {
     ${j.gift ? `<div class="trow"><span>Подарък (карта)</span><span>−${eur(j.gift)}</span></div>` : ''}
     <div class="trow" style="font-weight:800;font-size:16px"><span>${j.pay ? 'ОБЩО' : 'ЗА ПЛАЩАНЕ'}</span><span>${eur(j.price)}</span></div>
     <div class="trow"><span>Плащане</span><span>${j.pay ? pay : 'при взимане'}</span></div>
-    ${j.firm && j.pay !== 'firm' ? `<div class="trow"><span>Абонат</span><span>${esc(j.firm)}</span></div>` : ''}
+    ${j.firm && j.pay !== 'firm' ? `<div class="trow"><span>${(j.firmKind || ((S.firms || []).find(f => f.name === j.firm) || {}).kind) === 'sub' ? 'Абонат' : 'Фирма'}</span><span>${esc(j.firm)}</span></div>` : ''}
     <div class="trow"><span>Мияч</span><span>${esc(j.washer)}</span></div>
     <div class="trow"><span>Касиер</span><span>${esc(j.cashier)}</span></div><hr>
     ${j.loy ? `<div class="tc" style="font-weight:800;margin-bottom:2px">${j.gift ? 'ТОВА ИЗМИВАНЕ Е ПОДАРЪК!' : j.loy.stamps >= j.loy.every - 1 ? 'СЛЕДВАЩОТО ИЗМИВАНЕ Е ПОДАРЪК!' : `КАРТА HELIOS: ${j.loy.stamps} от ${j.loy.every}`}</div>
@@ -974,14 +974,15 @@ function autoPay() {
 }
 function upd() {
   const n = normPlate(F.plate), f = firmFor(F.plate), seen = {}, list = [];
-  S.firms.forEach(fm => fm.plates.forEach(p => list.push({ p, firm: fm.name, self: fm.self })));
+  S.firms.forEach(fm => fm.plates.forEach(p => list.push({ p, firm: fm.name, kind: fm.kind })));
   (S.day ? S.day.items : []).forEach(k => list.push({ p: k.plate }));
   const sug = list.filter(x => { const k = normPlate(x.p); if (seen[k]) return false; seen[k] = 1; return n.length >= 1 && k.indexOf(n) >= 0 && k !== n; }).slice(0, 8);
-  $('#sugg').innerHTML = sug.map(x => `<button data-p="${esc(x.p)}">${esc(prettyPlate(x.p))}${x.firm ? `<em>${x.self ? 'абонат' : 'фирма'}</em>` : ''}</button>`).join('');
+  $('#sugg').innerHTML = sug.map(x => `<button data-p="${esc(x.p)}">${esc(prettyPlate(x.p))}${x.firm ? `<em>${x.kind === 'sub' ? 'абонат' : 'фирма'}</em>` : ''}</button>`).join('');
   document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { F.plate = prettyPlate(b.dataset.p); $('#plate').value = F.plate; autoPay(); upd(); checkLoy(); });
   const due = n.length >= 3 ? ((S.day && S.day.unpaid) || []).filter(k => k.np === n) : [];
   const hand = n.length >= 3 ? ((S.day && S.day.handover) || []).filter(k => k.np === n) : [];
-  $('#firmInfo').innerHTML = (f ? f.self ? `<span class="badge blue">⭐ Абонат: ${esc(f.name)} · абонатни цени · плаща при взимане</span>` : `<span class="badge warn">${ic('building', 14)} ${esc(f.name)} · фирмени цени</span>` : '') +
+  $('#firmInfo').innerHTML = (f ? f.kind === 'sub' ? `<span class="badge blue">⭐ Абонат: ${esc(f.name)} · абонатни цени · плаща при взимане</span>`
+      : `<span class="badge warn">${ic('building', 14)} ${esc(f.name)} · фирмени цени · ${f.self ? 'плаща веднага' : 'по фактура'}</span>` : '') +
     due.map(k => `<div class="duehit"><span>🔔 Тази кола чака плащане: <b>талон № ${esc(k.talon)} · ${eur(k.price)}</b></span><button class="btn green sm" data-charge="${esc(k.id)}">Плати</button></div>`).join('') +
     hand.map(k => `<div class="duehit"><span>🔔 Фирмена кола за предаване: <b>талон № ${esc(k.talon)} · ${esc(k.firm)}</b></span><button class="btn teal sm" data-hand="${esc(k.id)}">Предай</button></div>`).join('');
   document.querySelectorAll('#firmInfo [data-charge]').forEach(b => b.onclick = () => chargeModal(due.find(k => k.id === b.dataset.charge), tabNew));
@@ -1515,26 +1516,29 @@ async function tabFirms() {
   let j; try { j = await api('firmsAll'); } catch (e) { $('#app').textContent = e.message; return; }
   if (S.tab !== 'firms') return;   // потребителят вече е в друг раздел
   S.firmList = j.firms;
-  const fs = j.firms.filter(f => !f.self), ss = j.firms.filter(f => f.self);
+  const fs = j.firms.filter(f => f.kind !== 'sub'), ss = j.firms.filter(f => f.kind === 'sub');
   setKpis([[fs.filter(f => f.active).length, 'активни фирми'], [ss.filter(f => f.active).length, 'активни абонати'], [j.firms.reduce((s, f) => s + f.plates.length, 0), 'коли']]);
   const card = f => `<button class="card" data-fi="${j.firms.indexOf(f)}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>${f.self ? '⭐ ' : ''}${esc(f.name)}</b>${f.active ? `<span class="badge ok">${f.self ? 'активен' : 'активна'}</span>` : `<span class="badge gray">${f.self ? 'спрян' : 'спряна'}</span>`}</div>
-      <div class="muted" style="margin-top:4px">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.plates.length} ${f.plates.length === 1 ? 'кола' : 'коли'}${f.self ? ' · плаща на място' : ' · фактура в края на месеца'}</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${f.kind === 'sub' ? '⭐ ' : ''}${esc(f.name)}</b>${f.active ? `<span class="badge ok">${f.kind === 'sub' ? 'активен' : 'активна'}</span>` : `<span class="badge gray">${f.kind === 'sub' ? 'спрян' : 'спряна'}</span>`}</div>
+      <div class="muted" style="margin-top:4px">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.plates.length} ${f.plates.length === 1 ? 'кола' : 'коли'}${f.kind === 'sub' ? ' · плаща на място' : f.self ? ' · <b>плаща веднага</b>' : ' · фактура в края на месеца'}</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}
       ${f.debt > 0.004 ? `<div style="margin-top:6px"><span class="badge bad">дължи ${eur(f.debt)}</span></div>` : ''}
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${Object.keys(f.prices).map(k => `<span class="badge blue">${esc(k)} ${eur(f.prices[k])}</span>`).join('')}</div></button>`;
   $('#app').innerHTML = `<div style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap"><button class="btn teal" id="fNew" style="flex:1;margin:0">+ Нова фирма</button><button class="btn teal" id="sNew" style="flex:1;margin:0">+ Нов абонат</button></div>
-    <div class="sec-t">Фирми · плащат с фактура</div>${fs.length ? fs.map(card).join('') : '<div class="empty">Още няма въведени фирми.</div>'}
+    <div class="sec-t">Фирми</div>${fs.length ? fs.map(card).join('') : '<div class="empty">Още няма въведени фирми.</div>'}
     <div class="sec-t">Абонати · свои цени, плащат на място</div>${ss.length ? ss.map(card).join('') : '<div class="empty">Още няма абонати. Абонатът е клиент със свои цени — касата ги слага сама по номера на колата, а той плаща в брой или с карта.</div>'}`;
   $('#sNew').onclick = () => editFirm(null, true);
   $('#fNew').onclick = () => editFirm(null);
   document.querySelectorAll('[data-fi]').forEach(b => b.onclick = () => editFirm(S.firmList[+b.dataset.fi]));
 }
 function editFirm(f, isSub) {
-  const plates = f ? f.plates.slice() : [], sub = f ? !!f.self : !!isSub;
+  const plates = f ? f.plates.slice() : [], sub = f ? f.kind === 'sub' : !!isSub;
+  let now = sub || !!(f && f.self);
   $('#app').innerHTML = `<div class="card"><h2 style="font-size:17px">${sub ? (f ? 'Промяна на абонат' : 'Нов абонат') : (f ? 'Промяна на фирма' : 'Нова фирма')}</h2>
     ${sub ? '<p class="muted" style="margin-top:-4px">Абонатът има свои цени и плаща на място — в брой или с карта. Не влиза в месечните фактури и не трупа карта за лоялност.</p>' : ''}
     <label class="l" for="fN">${sub ? 'Име на абоната' : 'Име на фирмата'}</label><input class="f" id="fN" autocomplete="off" value="${esc(f ? f.name : '')}" placeholder="${sub ? 'напр. Иван Петров' : 'Транс Лоджистик ЕООД'}">
-    <div ${sub ? 'hidden' : ''}><label class="l" for="fE">ЕИК</label><input class="f" id="fE" inputmode="numeric" autocomplete="off" value="${esc(f ? f.eik : '')}" placeholder="9 цифри"></div></div>
+    <div ${sub ? 'hidden' : ''}><label class="l" for="fE">ЕИК</label><input class="f" id="fE" inputmode="numeric" autocomplete="off" value="${esc(f ? f.eik : '')}" placeholder="9 цифри">
+      <label class="l">Как плаща</label><div class="seg" id="fPay" style="grid-template-columns:1fr 1fr"><button type="button" data-fpay="later">🧾 По фактура<br><small style="font-weight:500">в края на месеца</small></button><button type="button" data-fpay="now">💶 Веднага<br><small style="font-weight:500">в брой или карта</small></button></div>
+      <div class="muted" id="fPayHint" style="margin-top:6px"></div></div></div>
     <div class="card"><h2>Контакт</h2>
     <label class="l" for="fC" style="margin-top:0">Лице за контакт</label><input class="f" id="fC" autocomplete="off" value="${esc(f ? f.contact : '')}" placeholder="напр. Николай Петров">
     <label class="l" for="fT">Телефон</label><input class="f" id="fT" type="tel" inputmode="tel" autocomplete="off" value="${esc(f ? f.phone : '')}" placeholder="напр. 0888 123 456">
@@ -1559,13 +1563,19 @@ function editFirm(f, isSub) {
     if (plates.some(p => normPlate(p) === n)) { toast('Този номер вече е в списъка', false); return; }
     plates.push(v); $('#fPl').value = ''; $('#fPl').focus(); draw();
   };
+  const payDraw = () => {
+    document.querySelectorAll('[data-fpay]').forEach(b => b.classList.toggle('on', (b.dataset.fpay === 'now') === now));
+    if ($('#fPayHint')) $('#fPayHint').textContent = now ? 'Касиерът слага фирмените цени, а колата чака плащане като всеки клиент. Не влиза във фактурите.' : 'Колите се записват на фирмата и се плащат с фактура в края на месеца. Шофьорът се подписва при предаване.';
+  };
+  document.querySelectorAll('[data-fpay]').forEach(b => b.onclick = () => { now = b.dataset.fpay === 'now'; payDraw(); });
+  payDraw();
   $('#fAdd').onclick = add;
   $('#fPl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
   $('#fCancel').onclick = tabFirms;
   $('#fSave').onclick = async () => {
     const b = $('#fSave'); b.disabled = true;
     try {
-      await api('saveFirm', { row: f ? f.row : 0, name: $('#fN').value, eik: $('#fE').value, contact: $('#fC').value, phone: $('#fT').value, email: $('#fM').value, plates, active: $('#fA').checked, self: sub,
+      await api('saveFirm', { row: f ? f.row : 0, name: $('#fN').value, eik: $('#fE').value, contact: $('#fC').value, phone: $('#fT').value, email: $('#fM').value, plates, active: $('#fA').checked, kind: sub ? 'sub' : 'firm', self: now,
         prices: Object.fromEntries([...document.querySelectorAll('[data-fp]')].map(i => [i.dataset.fp, i.value])) });
       toast(sub ? 'Абонатът е запазен' : 'Фирмата е запазена'); tabFirms();
     } catch (e) { toast(e.message, false); b.disabled = false; }

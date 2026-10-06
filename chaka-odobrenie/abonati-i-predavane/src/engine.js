@@ -11,7 +11,7 @@ var HELIOS = (function () {
   var TABLES = {
     users:    { sheet: 'Потребители', cols: [['id','s'],['name','s'],['username','s'],['role','s'],['active','b'],['canAddWashers','b'],['dayWage','n'],['salt','s'],['hash','s'],['v','n']] },
     prices:   { sheet: 'Услуги', cols: [['id','s'],['name','s'],['price','n'],['active','b'],['ord','n'],['v','n']] },
-    firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n'],['self','b']] },
+    firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n'],['self','b'],['kind','s']] },
     kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n'],['handedAt','S'],['handedBy','S'],['driver','S'],['handMode','S'],['sig','S']] },
     wash:     { sheet: 'Миене', cols: [['id','s'],['date','s'],['time','s'],['plate','s'],['np','s'],['service','s'],['washer','s'],['v','n']] },
     payouts:  { sheet: 'Изплащания', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['washer','s'],['amount','n'],['cashier','s'],['kind','S'],['v','n']] },
@@ -86,7 +86,8 @@ var HELIOS = (function () {
     var washers = function () { return db.users.filter(function (u) { return u.role === 'washer' && u.active; }).map(function (u) { return u.name; }); };
     var pricesSorted = function () { return db.prices.slice().sort(function (a, b) { return a.ord - b.ord; }); };
     var activeP = function () { return pricesSorted().filter(function (x) { return x.active; }).map(function (x) { return { name: x.name, price: x.price }; }); };
-    var activeFirms = function () { return db.firms.filter(function (f) { return f.active; }).map(function (f) { return { name: f.name, eik: f.eik, prices: f.prices || {}, plates: (f.list || []).map(norm), self: !!f.self }; }); };
+    var fkind = function (f) { return f.kind || (f.self ? 'sub' : 'firm'); };   // фирма или абонат
+    var activeFirms = function () { return db.firms.filter(function (f) { return f.active; }).map(function (f) { return { name: f.name, eik: f.eik, prices: f.prices || {}, plates: (f.list || []).map(norm), self: !!f.self, kind: fkind(f) }; }); };
     var firmOf = function (np) { return activeFirms().filter(function (f) { return f.plates.indexOf(np) >= 0; })[0]; };
 
     function stamps(np) {
@@ -288,7 +289,7 @@ var HELIOS = (function () {
           db.kasa.push(k);
           var st = L2.on && !f ? stamps(np0) : null;
           return { id: k.id, talon: k.talon, date: k.date, time: k.time, plate: plate, service: k.service, items: k.items, price: k.price, gift: k.gift,
-            loy: st == null ? null : { stamps: st, every: L2.every }, washer: p.washer, cashier: u.name, pay: k.pay, firm: k.firm };
+            loy: st == null ? null : { stamps: st, every: L2.every }, washer: p.washer, cashier: u.name, pay: k.pay, firm: k.firm, firmKind: f ? f.kind : '' };
         }
         case 'payKasa': {
           need(u, ['cashier', 'admin']);
@@ -474,7 +475,7 @@ var HELIOS = (function () {
         case 'clients': {
           need(u, ['admin']);
           var cdays = Math.max(1, Number(p.days) || 30), cm = T.slice(0, 7), dayMs = 864e5, tNow = new Date(T).getTime();
-          var firmPl = {}, subPl = {}; db.firms.forEach(function (f) { (f.list || []).forEach(function (y) { firmPl[norm(y)] = f.name; if (f.self) subPl[norm(y)] = 1; }); });
+          var firmPl = {}, subPl = {}; db.firms.forEach(function (f) { (f.list || []).forEach(function (y) { firmPl[norm(y)] = f.name; if (fkind(f) === 'sub') subPl[norm(y)] = 1; }); });
           var by = {};
           db.kasa.filter(function (k) { return !k.void; }).forEach(function (k) {
             var c = by[k.np] || (by[k.np] = { plate: k.plate, visits: 0, month: 0, spent: 0, first: k.date, last: k.date, dates: [], firm: firmPl[k.np] || '' });
@@ -525,20 +526,20 @@ var HELIOS = (function () {
           need(u, ['admin']);
           var debts = firmDebts();
           return { firms: db.firms.map(function (f) { return { debt: r2(sum(debts.filter(function (y) { return y.firm === f.name; }), function (y) { return y.rest; })), row: f.row, name: f.name, eik: f.eik,
-            contact: f.contact || '', phone: f.phone || '', email: f.email || '', prices: Object.assign({}, f.prices), plates: (f.list || []).slice(), active: f.active, self: !!f.self }; }) };
+            contact: f.contact || '', phone: f.phone || '', email: f.email || '', prices: Object.assign({}, f.prices), plates: (f.list || []).slice(), active: f.active, self: !!f.self, kind: fkind(f) }; }) };
         case 'saveFirm': {
           need(u, ['admin']);
-          var fself = !!p.self, fnm = String(p.name || '').trim(); if (!fnm) throw new Error(fself ? 'Въведи име на абоната' : 'Въведи име на фирмата');
+          var fsub = p.kind === 'sub', fself = fsub || !!p.self, fnm = String(p.name || '').trim(); if (!fnm) throw new Error(fsub ? 'Въведи име на абоната' : 'Въведи име на фирмата');
           var fpr = {};
           Object.keys(p.prices || {}).forEach(function (k) { var v = num(p.prices[k]); if (v > 0 && db.prices.some(function (y) { return y.name === k; })) fpr[k] = v; });
-          if (!Object.keys(fpr).length) throw new Error(fself ? 'Въведи абонатна цена поне за една услуга' : 'Въведи фирмена цена поне за една услуга');
+          if (!Object.keys(fpr).length) throw new Error(fsub ? 'Въведи абонатна цена поне за една услуга' : 'Въведи фирмена цена поне за една услуга');
           var row = Number(p.row) || 0, factive = p.active !== false, seen = {}, flist = [];
           (p.plates || []).forEach(function (s) { s = String(s).trim().toUpperCase(); var n = norm(s); if (n.length >= 4 && !seen[n]) { seen[n] = 1; flist.push(s); } });
           if (db.firms.some(function (f) { return f.row !== row && f.name.toLowerCase() === fnm.toLowerCase(); })) throw new Error('Вече има фирма или абонат с това име');
-          if (factive) db.firms.filter(function (f) { return f.row !== row && f.active; }).forEach(function (f) { (f.list || []).forEach(function (y) { if (seen[norm(y)]) throw new Error(y + ' вече е към ' + (f.self ? 'абонат ' : 'фирма ') + f.name); }); });
+          if (factive) db.firms.filter(function (f) { return f.row !== row && f.active; }).forEach(function (f) { (f.list || []).forEach(function (y) { if (seen[norm(y)]) throw new Error(y + ' вече е към ' + (fkind(f) === 'sub' ? 'абонат ' : 'фирма ') + f.name); }); });
           var phone = String(p.phone || '').trim();
           if (phone && !/^[+0-9 ()/-]{6,20}$/.test(phone)) throw new Error('Телефонът изглежда грешен — само цифри, интервали и +');
-          var frec = { name: fnm, eik: String(p.eik || '').trim(), contact: String(p.contact || '').trim(), phone: phone, email: String(p.email || '').trim(), list: flist, prices: fpr, active: factive, self: fself };
+          var frec = { name: fnm, eik: String(p.eik || '').trim(), contact: String(p.contact || '').trim(), phone: phone, email: String(p.email || '').trim(), list: flist, prices: fpr, active: factive, self: fself, kind: fsub ? 'sub' : 'firm' };
           var fex = find(db.firms, function (f) { return f.row === row; });
           if (fex) {
             if (fex.name !== fnm) db.kasa.forEach(function (k) { if (k.firm === fex.name) k.firm = fnm; });
