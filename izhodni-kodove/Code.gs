@@ -11,8 +11,8 @@ var HELIOS = (function () {
   var TABLES = {
     users:    { sheet: 'Потребители', cols: [['id','s'],['name','s'],['username','s'],['role','s'],['active','b'],['canAddWashers','b'],['dayWage','n'],['salt','s'],['hash','s'],['v','n']] },
     prices:   { sheet: 'Услуги', cols: [['id','s'],['name','s'],['price','n'],['active','b'],['ord','n'],['v','n']] },
-    firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n']] },
-    kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n']] },
+    firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n'],['self','b'],['kind','s']] },
+    kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n'],['handedAt','S'],['handedBy','S'],['driver','S'],['handMode','S'],['sig','S']] },
     wash:     { sheet: 'Миене', cols: [['id','s'],['date','s'],['time','s'],['plate','s'],['np','s'],['service','s'],['washer','s'],['v','n']] },
     payouts:  { sheet: 'Изплащания', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['washer','s'],['amount','n'],['cashier','s'],['kind','S'],['v','n']] },
     firmPays: { sheet: 'ФирмениПлащания', cols: [['id','s'],['firm','s'],['month','s'],['amount','n'],['date','s'],['method','s'],['note','s'],['by','s'],['v','n']] },
@@ -26,7 +26,7 @@ var HELIOS = (function () {
   var DEFAULT_SETTINGS = { talonName: 'АВТОМИВКА HELIOS', address: '', clientTalon: false, pct: 40,
     loyalty: { on: true, every: 10, maxValue: 18, payWasher: true } };
   // действия, които касата може да направи и без интернет
-  var OFFLINE_WRITE = ['addKasa', 'payKasa', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login'];
+  var OFFLINE_WRITE = ['addKasa', 'payKasa', 'handover', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login'];
   var LOCAL_READ = ['myDay', 'payroll', 'shiftState', 'loyalty'];
   var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa']);
 
@@ -86,7 +86,8 @@ var HELIOS = (function () {
     var washers = function () { return db.users.filter(function (u) { return u.role === 'washer' && u.active; }).map(function (u) { return u.name; }); };
     var pricesSorted = function () { return db.prices.slice().sort(function (a, b) { return a.ord - b.ord; }); };
     var activeP = function () { return pricesSorted().filter(function (x) { return x.active; }).map(function (x) { return { name: x.name, price: x.price }; }); };
-    var activeFirms = function () { return db.firms.filter(function (f) { return f.active; }).map(function (f) { return { name: f.name, eik: f.eik, prices: f.prices || {}, plates: (f.list || []).map(norm) }; }); };
+    var fkind = function (f) { return f.kind || (f.self ? 'sub' : 'firm'); };   // фирма или абонат
+    var activeFirms = function () { return db.firms.filter(function (f) { return f.active; }).map(function (f) { return { name: f.name, eik: f.eik, prices: f.prices || {}, plates: (f.list || []).map(norm), self: !!f.self, kind: fkind(f) }; }); };
     var firmOf = function (np) { return activeFirms().filter(function (f) { return f.plates.indexOf(np) >= 0; })[0]; };
 
     function stamps(np) {
@@ -179,6 +180,7 @@ var HELIOS = (function () {
     var cashierPay = function (d) { return r2(sum(db.payouts.filter(function (x) { return x.kind === 'cashier' && x.date.slice(0, d.length) === d; }), function (x) { return x.amount; })); };
     function need(u, r) { if (r.indexOf(u.role) < 0) throw new Error('Нямаш права за това'); }
     var find = function (arr, f) { return arr.filter(f)[0]; };
+    var daysAgo = function (n) { var d = new Date(T + 'T12:00:00'); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
     var noPass = function (x) { var c = Object.assign({}, x); delete c.salt; delete c.hash; delete c.v; return c; };
 
     function handle(p, u) {
@@ -281,13 +283,13 @@ var HELIOS = (function () {
             talon: String(p.talon || (db.kasa.filter(function (x) { return x.date === T; }).length + 1)),
             plate: plate, np: np0, service: items.map(function (x) { return x.name; }).join(' + '), items: items,
             price: r2(sum(items, function (x) { return x.price; })), gift: 0, washer: p.washer, cashier: u.name, void: false, reason: '',
-            pay: f ? 'firm' : null, firm: f ? f.name : '', paySeq: null, payDate: null, paidAt: null, paidBy: null };
+            pay: f && !f.self ? 'firm' : null, firm: f ? f.name : '', paySeq: null, payDate: null, paidAt: null, paidBy: null };
           if (eligible && p.useGift) { k.gift = r2(Math.min(L2.maxValue, k.price)); k.price = r2(k.price - k.gift); }
           if (!k.pay && k.price <= 0) { k.pay = 'cash'; k.paySeq = seq; k.payDate = T; k.paidAt = time; k.paidBy = u.name; }   // изцяло подарък
           db.kasa.push(k);
           var st = L2.on && !f ? stamps(np0) : null;
           return { id: k.id, talon: k.talon, date: k.date, time: k.time, plate: plate, service: k.service, items: k.items, price: k.price, gift: k.gift,
-            loy: st == null ? null : { stamps: st, every: L2.every }, washer: p.washer, cashier: u.name, pay: k.pay, firm: k.firm };
+            loy: st == null ? null : { stamps: st, every: L2.every }, washer: p.washer, cashier: u.name, pay: k.pay, firm: k.firm, firmKind: f ? f.kind : '' };
         }
         case 'payKasa': {
           need(u, ['cashier', 'admin']);
@@ -297,6 +299,18 @@ var HELIOS = (function () {
           if (['cash', 'card'].indexOf(p.pay) < 0) throw new Error('Избери в брой или карта');
           Object.assign(kk, { pay: p.pay, paySeq: nextSeq(), payDate: T, paidAt: now(), paidBy: u.name });
           return { id: kk.id, talon: kk.talon, plate: kk.plate, price: kk.price, pay: kk.pay };
+        }
+        case 'handover': {   // фирмена кола: шофьорът я взима и се подписва
+          need(u, ['cashier', 'admin']);
+          var hk = find(db.kasa, function (x) { return x.id === p.id; }); if (!hk || hk.void) throw new Error('Талонът не е намерен');
+          if (hk.pay !== 'firm') throw new Error('Това не е фирмена кола');
+          if (hk.handedAt) throw new Error('Колата вече е предадена');
+          var drv = String(p.driver || '').trim(), mode = p.mode === 'paper' ? 'paper' : 'sig', sig = String(p.sig || '');
+          if (mode === 'sig' && drv.length < 2) throw new Error('Напиши името на шофьора');
+          if (mode === 'sig' && sig.indexOf('data:image/') !== 0) throw new Error('Шофьорът трябва да се подпише');
+          if (sig.length > 45000) throw new Error('Подписът е твърде голям — изчисти и опитай пак');
+          Object.assign(hk, { handedAt: T + ' ' + now(), handedBy: u.name, driver: drv, handMode: mode, sig: mode === 'sig' ? sig : null });
+          return { id: hk.id, talon: hk.talon, date: hk.date, time: hk.time, plate: hk.plate, firm: hk.firm, items: hk.items, service: hk.service, price: hk.price, handedAt: hk.handedAt, driver: drv, mode: mode };
         }
         case 'addWash': {
           need(u, ['washer']);
@@ -325,6 +339,9 @@ var HELIOS = (function () {
             firms: activeFirms(), prices: activeP(), talonName: S.talonName, address: S.address, clientTalon: !!S.clientTalon, canAddWashers: !!u.canAddWashers, washers: washers(),
             unpaid: db.kasa.filter(function (k) { return !k.void && !k.pay; }).map(function (k) {
               return { id: k.id, talon: k.talon, date: k.date, time: k.time, plate: k.plate, np: k.np, service: k.service, items: k.items, price: k.price, gift: k.gift || 0, washer: k.washer,
+                washed: db.wash.some(function (w) { return w.date === k.date && w.np === k.np && w.washer === k.washer; }) }; }),
+            handover: db.kasa.filter(function (k) { return !k.void && k.pay === 'firm' && !k.handedAt && k.date >= daysAgo(3); }).map(function (k) {
+              return { id: k.id, talon: k.talon, date: k.date, time: k.time, plate: k.plate, np: k.np, service: k.service, items: k.items, price: k.price, washer: k.washer, firm: k.firm,
                 washed: db.wash.some(function (w) { return w.date === k.date && w.np === k.np && w.washer === k.washer; }) }; }),
             cash: r2(sum(active.filter(function (k) { return k.pay === 'cash'; }), function (k) { return k.price; })),
             paidOut: r2(sum(db.payouts.filter(function (x) { return x.date === T; }), function (x) { return x.amount; })),
@@ -458,7 +475,7 @@ var HELIOS = (function () {
         case 'clients': {
           need(u, ['admin']);
           var cdays = Math.max(1, Number(p.days) || 30), cm = T.slice(0, 7), dayMs = 864e5, tNow = new Date(T).getTime();
-          var firmPl = {}; db.firms.forEach(function (f) { (f.list || []).forEach(function (y) { firmPl[norm(y)] = f.name; }); });
+          var firmPl = {}, subPl = {}; db.firms.forEach(function (f) { (f.list || []).forEach(function (y) { firmPl[norm(y)] = f.name; if (fkind(f) === 'sub') subPl[norm(y)] = 1; }); });
           var by = {};
           db.kasa.filter(function (k) { return !k.void; }).forEach(function (k) {
             var c = by[k.np] || (by[k.np] = { plate: k.plate, visits: 0, month: 0, spent: 0, first: k.date, last: k.date, dates: [], firm: firmPl[k.np] || '' });
@@ -467,7 +484,7 @@ var HELIOS = (function () {
           });
           var list = Object.keys(by).map(function (key) {
             var c = by[key], ds = uniq(c.dates).sort(), span = (new Date(ds[ds.length - 1]) - new Date(ds[0])) / dayMs;
-            return { plate: c.plate, firm: c.firm, visits: c.visits, month: c.month, spent: r2(c.spent), first: c.first, last: c.last,
+            return { plate: c.plate, firm: c.firm, sub: !!subPl[key], visits: c.visits, month: c.month, spent: r2(c.spent), first: c.first, last: c.last,
               every: ds.length > 1 ? Math.round(span / (ds.length - 1)) : 0, since: Math.round((tNow - new Date(c.last).getTime()) / dayMs) };
           });
           var inMonth = list.filter(function (c) { return c.month > 0; });
@@ -489,7 +506,8 @@ var HELIOS = (function () {
           db.kasa.filter(function (k) { return k.date.slice(0, 7) === fm && k.pay === 'firm' && !k.void; }).forEach(function (k) {
             var src = find(db.firms, function (y) { return y.name === k.firm; }) || {};
             var f = fb[k.firm] || (fb[k.firm] = { name: k.firm, eik: src.eik || '', contact: src.contact || '', phone: src.phone || '', email: src.email || '', count: 0, total: 0, items: [] });
-            f.count++; f.total = r2(f.total + k.price); f.items.push({ date: k.date, time: k.time, plate: k.plate, service: k.service, price: k.price });
+            f.count++; f.total = r2(f.total + k.price); f.items.push({ date: k.date, time: k.time, plate: k.plate, service: k.service, price: k.price, handedAt: k.handedAt, driver: k.driver, handMode: k.handMode, sig: k.sig });
+            if (!k.handedAt) f.unsigned = (f.unsigned || 0) + 1;
           });
           Object.keys(fb).forEach(function (key) { var f = fb[key]; f.pays = db.firmPays.filter(function (y) { return y.firm === f.name && y.month === fm; }); f.paid = r2(sum(f.pays, function (y) { return y.amount; })); f.rest = r2(f.total - f.paid); });
           return { month: fm, firms: Object.keys(fb).map(function (key) { return fb[key]; }).sort(function (a, b) { return b.total - a.total; }), older: firmDebts().filter(function (y) { return y.month !== fm; }) };
@@ -508,20 +526,20 @@ var HELIOS = (function () {
           need(u, ['admin']);
           var debts = firmDebts();
           return { firms: db.firms.map(function (f) { return { debt: r2(sum(debts.filter(function (y) { return y.firm === f.name; }), function (y) { return y.rest; })), row: f.row, name: f.name, eik: f.eik,
-            contact: f.contact || '', phone: f.phone || '', email: f.email || '', prices: Object.assign({}, f.prices), plates: (f.list || []).slice(), active: f.active }; }) };
+            contact: f.contact || '', phone: f.phone || '', email: f.email || '', prices: Object.assign({}, f.prices), plates: (f.list || []).slice(), active: f.active, self: !!f.self, kind: fkind(f) }; }) };
         case 'saveFirm': {
           need(u, ['admin']);
-          var fnm = String(p.name || '').trim(); if (!fnm) throw new Error('Въведи име на фирмата');
+          var fsub = p.kind === 'sub', fself = fsub || !!p.self, fnm = String(p.name || '').trim(); if (!fnm) throw new Error(fsub ? 'Въведи име на абоната' : 'Въведи име на фирмата');
           var fpr = {};
           Object.keys(p.prices || {}).forEach(function (k) { var v = num(p.prices[k]); if (v > 0 && db.prices.some(function (y) { return y.name === k; })) fpr[k] = v; });
-          if (!Object.keys(fpr).length) throw new Error('Въведи фирмена цена поне за една услуга');
+          if (!Object.keys(fpr).length) throw new Error(fsub ? 'Въведи абонатна цена поне за една услуга' : 'Въведи фирмена цена поне за една услуга');
           var row = Number(p.row) || 0, factive = p.active !== false, seen = {}, flist = [];
           (p.plates || []).forEach(function (s) { s = String(s).trim().toUpperCase(); var n = norm(s); if (n.length >= 4 && !seen[n]) { seen[n] = 1; flist.push(s); } });
-          if (db.firms.some(function (f) { return f.row !== row && f.name.toLowerCase() === fnm.toLowerCase(); })) throw new Error('Вече има фирма с това име');
-          if (factive) db.firms.filter(function (f) { return f.row !== row && f.active; }).forEach(function (f) { (f.list || []).forEach(function (y) { if (seen[norm(y)]) throw new Error(y + ' вече е към фирма ' + f.name); }); });
+          if (db.firms.some(function (f) { return f.row !== row && f.name.toLowerCase() === fnm.toLowerCase(); })) throw new Error('Вече има фирма или абонат с това име');
+          if (factive) db.firms.filter(function (f) { return f.row !== row && f.active; }).forEach(function (f) { (f.list || []).forEach(function (y) { if (seen[norm(y)]) throw new Error(y + ' вече е към ' + (fkind(f) === 'sub' ? 'абонат ' : 'фирма ') + f.name); }); });
           var phone = String(p.phone || '').trim();
           if (phone && !/^[+0-9 ()/-]{6,20}$/.test(phone)) throw new Error('Телефонът изглежда грешен — само цифри, интервали и +');
-          var frec = { name: fnm, eik: String(p.eik || '').trim(), contact: String(p.contact || '').trim(), phone: phone, email: String(p.email || '').trim(), list: flist, prices: fpr, active: factive };
+          var frec = { name: fnm, eik: String(p.eik || '').trim(), contact: String(p.contact || '').trim(), phone: phone, email: String(p.email || '').trim(), list: flist, prices: fpr, active: factive, self: fself, kind: fsub ? 'sub' : 'firm' };
           var fex = find(db.firms, function (f) { return f.row === row; });
           if (fex) {
             if (fex.name !== fnm) db.kasa.forEach(function (k) { if (k.firm === fex.name) k.firm = fnm; });
@@ -587,6 +605,7 @@ var HELIOS = (function () {
     SYNCED.forEach(function (t) {
       var rows = db[t].filter(function (r) { return since === 0 || (Number(r.v) || 0) > since || tset[r.id]; });
       if (t === 'users') rows = rows.map(function (r) { var c = Object.assign({}, r); delete c.salt; delete c.hash; return c; });
+      if (t === 'kasa') rows = rows.map(function (r) { if (!r.sig) return r; var c = Object.assign({}, r); c.sig = 'y'; return c; });   // подписите не трябват на касата
       if (rows.length) out.tables[t] = rows;
     });
     if ((Number(db.meta.sv) || 0) > since || since === 0) out.settings = db.settings;
@@ -719,6 +738,11 @@ function SheetStore_() {
               const def = T[t], sh = ss.getSheetByName(def.sheet);
               if (!sh) throw new Error('Липсва лист „' + def.sheet + '“ — пусни функцията setup');
               sheets[t] = sh;
+              if (sh.getLastColumn() < def.cols.length) {   // нови колони след обновяване — дописваме заглавията
+                const fromC = sh.getLastColumn() + 1, names = def.cols.slice(fromC - 1).map(c => [c[0]]);
+                if (sh.getMaxColumns() < def.cols.length) sh.insertColumnsAfter(sh.getMaxColumns(), def.cols.length - sh.getMaxColumns());
+                sh.getRange(1, fromC, 1, names.length).setValues([names.map(x => x[0])]).setFontWeight('bold').setBackground('#F2C230');
+              }
               const last = sh.getLastRow(), vals = last > 1 ? sh.getRange(2, 1, last - 1, def.cols.length).getValues() : [];
               rows = vals.map(r => { const o = {}; def.cols.forEach((c, i) => { o[c[0]] = cellToVal_(r[i], c[1], c[0]); }); return o; });
               loaded[t] = rows.length; snap[t] = rows.map(r => JSON.stringify(r));

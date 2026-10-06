@@ -731,6 +731,7 @@ function talonHtml(j, copy) {
     ${j.gift ? `<div class="trow"><span>Подарък (карта)</span><span>−${eur(j.gift)}</span></div>` : ''}
     <div class="trow" style="font-weight:800;font-size:16px"><span>${j.pay ? 'ОБЩО' : 'ЗА ПЛАЩАНЕ'}</span><span>${eur(j.price)}</span></div>
     <div class="trow"><span>Плащане</span><span>${j.pay ? pay : 'при взимане'}</span></div>
+    ${j.firm && j.pay !== 'firm' ? `<div class="trow"><span>${(j.firmKind || ((S.firms || []).find(f => f.name === j.firm) || {}).kind) === 'sub' ? 'Абонат' : 'Фирма'}</span><span>${esc(j.firm)}</span></div>` : ''}
     <div class="trow"><span>Мияч</span><span>${esc(j.washer)}</span></div>
     <div class="trow"><span>Касиер</span><span>${esc(j.cashier)}</span></div><hr>
     ${j.loy ? `<div class="tc" style="font-weight:800;margin-bottom:2px">${j.gift ? 'ТОВА ИЗМИВАНЕ Е ПОДАРЪК!' : j.loy.stamps >= j.loy.every - 1 ? 'СЛЕДВАЩОТО ИЗМИВАНЕ Е ПОДАРЪК!' : `КАРТА HELIOS: ${j.loy.stamps} от ${j.loy.every}`}</div>
@@ -772,13 +773,13 @@ async function refreshCashierKpis() {
   try {
     const j = await api('myDay'); S.day = j; if (j.firms) S.firms = j.firms;
     if ('clientTalon' in j) { S.clientTalon = !!j.clientTalon; S.talonName = j.talonName || S.talonName; S.address = j.address || ''; S.user.canAddWashers = !!j.canAddWashers; if (j.washers) S.washers = j.washers; if (j.prices) S.prices = j.prices; }
-    const tb = document.querySelector('[data-tab="due"]'); if (tb) { const n = (j.unpaid || []).length; tb.innerHTML = ic('cash') + 'Плащане' + (n ? ` <span class="tabn">${n}</span>` : ''); }
+    const tb = document.querySelector('[data-tab="due"]'); if (tb) { const n = (j.unpaid || []).length + (j.handover || []).length; tb.innerHTML = ic('cash') + 'Плащане' + (n ? ` <span class="tabn">${n}</span>` : ''); }
     setKpis(j.shift ? [[j.items.filter(k => !k.void).length, 'коли днес'], [eur(j.shift.expected), 'в касата', 'good'], [eur(j.envTotal), 'в пликовете']]
       : [['—', 'смяната е затворена', 'warn'], [eur(j.lastFloat), 'оставено в касата'], [eur(j.envTotal), 'в пликовете']]);
   } catch (e) {}
 }
 function firmFor(plate) { const n = normPlate(plate); return n.length >= 4 ? S.firms.find(f => f.plates.indexOf(n) >= 0) : null; }
-function priceOf(p) { const f = F.pay === 'firm' ? firmFor(F.plate) : null; return f && f.prices[p.name] > 0 ? f.prices[p.name] : p.price; }
+function priceOf(p) { const f = firmFor(F.plate); return f && f.prices[p.name] > 0 ? f.prices[p.name] : p.price; }
 // екранна клавиатура: режим „BG“ (подрежда номера) или „Чужд / транзитен“ (свободно писане, латиница)
 function drawPkb() {
   const pl = $('#plate'), bg = F.kb !== 'free';
@@ -945,7 +946,7 @@ function tabNew() {
     <aside class="cside"><div class="side-tot"><small>Сума по талона</small><b class="big" id="total2">0.00 €</b>
       <div id="sumList" style="font-size:14px;opacity:.85;margin:-4px 0 14px"></div>
       <button class="go" id="save2">${ic('print', 22)} Печат</button></div>
-      <div class="sec-t">Чакат плащане</div><div id="recent"></div></aside></div>`;
+      <div class="sec-t">Чакат плащане / предаване</div><div id="recent"></div></aside></div>`;
   $('#bar').innerHTML = `<div class="actbar"><div class="actbar-in"><div class="tot"><small>Общо</small><b id="total">0.00 €</b></div>
     <button class="go" id="save">${ic('print', 20)} Печат</button></div></div>`;
   const pl = $('#plate');
@@ -969,19 +970,23 @@ document.addEventListener('keydown', e => {
 });
 function autoPay() {
   const f = firmFor(F.plate);
-  F.pay = f ? 'firm' : null; F.autoFirm = !!f;
+  F.pay = f && !f.self ? 'firm' : null; F.autoFirm = !!f;
 }
 function upd() {
   const n = normPlate(F.plate), f = firmFor(F.plate), seen = {}, list = [];
-  S.firms.forEach(fm => fm.plates.forEach(p => list.push({ p, firm: fm.name })));
+  S.firms.forEach(fm => fm.plates.forEach(p => list.push({ p, firm: fm.name, kind: fm.kind })));
   (S.day ? S.day.items : []).forEach(k => list.push({ p: k.plate }));
   const sug = list.filter(x => { const k = normPlate(x.p); if (seen[k]) return false; seen[k] = 1; return n.length >= 1 && k.indexOf(n) >= 0 && k !== n; }).slice(0, 8);
-  $('#sugg').innerHTML = sug.map(x => `<button data-p="${esc(x.p)}">${esc(prettyPlate(x.p))}${x.firm ? '<em>фирма</em>' : ''}</button>`).join('');
+  $('#sugg').innerHTML = sug.map(x => `<button data-p="${esc(x.p)}">${esc(prettyPlate(x.p))}${x.firm ? `<em>${x.kind === 'sub' ? 'абонат' : 'фирма'}</em>` : ''}</button>`).join('');
   document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { F.plate = prettyPlate(b.dataset.p); $('#plate').value = F.plate; autoPay(); upd(); checkLoy(); });
   const due = n.length >= 3 ? ((S.day && S.day.unpaid) || []).filter(k => k.np === n) : [];
-  $('#firmInfo').innerHTML = (f ? `<span class="badge warn">${ic('building', 14)} ${esc(f.name)} · фирмени цени</span>` : '') +
-    due.map(k => `<div class="duehit"><span>🔔 Тази кола чака плащане: <b>талон № ${esc(k.talon)} · ${eur(k.price)}</b></span><button class="btn green sm" data-charge="${esc(k.id)}">Плати</button></div>`).join('');
+  const hand = n.length >= 3 ? ((S.day && S.day.handover) || []).filter(k => k.np === n) : [];
+  $('#firmInfo').innerHTML = (f ? f.kind === 'sub' ? `<span class="badge blue">⭐ Абонат: ${esc(f.name)} · абонатни цени · плаща при взимане</span>`
+      : `<span class="badge warn">${ic('building', 14)} ${esc(f.name)} · фирмени цени · ${f.self ? 'плаща веднага' : 'по фактура'}</span>` : '') +
+    due.map(k => `<div class="duehit"><span>🔔 Тази кола чака плащане: <b>талон № ${esc(k.talon)} · ${eur(k.price)}</b></span><button class="btn green sm" data-charge="${esc(k.id)}">Плати</button></div>`).join('') +
+    hand.map(k => `<div class="duehit"><span>🔔 Фирмена кола за предаване: <b>талон № ${esc(k.talon)} · ${esc(k.firm)}</b></span><button class="btn teal sm" data-hand="${esc(k.id)}">Предай</button></div>`).join('');
   document.querySelectorAll('#firmInfo [data-charge]').forEach(b => b.onclick = () => chargeModal(due.find(k => k.id === b.dataset.charge), tabNew));
+  document.querySelectorAll('#firmInfo [data-hand]').forEach(b => b.onclick = () => handModal(hand.find(k => k.id === b.dataset.hand), tabNew));
   document.querySelectorAll('[data-s]').forEach(b => {
     const p = S.prices.find(x => x.name === b.dataset.s), on = F.svcs.indexOf(p.name) >= 0;
     b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.querySelector('[data-pr]').textContent = eur(priceOf(p));
@@ -1043,19 +1048,59 @@ async function saveTalon() {
 }
 // талони, които чакат плащане — клиентът плаща, когато си вземе колата
 function dueList(el, back) {
-  const L = (S.day && S.day.unpaid) || [];
-  el.innerHTML = L.length ? L.map(k => `<div class="card duec"><div style="display:flex;align-items:center;gap:10px">
+  const L = (S.day && S.day.unpaid) || [], H = (S.day && S.day.handover) || [];
+  const all = L.map(k => Object.assign({ kind: 'pay' }, k)).concat(H.map(k => Object.assign({ kind: 'firm' }, k)))
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  el.innerHTML = all.length ? all.map(k => `<div class="card duec"${k.kind === 'firm' ? ' style="border-left:4px solid var(--teal)"' : ''}><div style="display:flex;align-items:center;gap:10px">
       <div style="flex:1;min-width:0"><span class="pl">${esc(k.plate)}</span><div class="muted">№${esc(k.talon)} · ${k.date !== todayStr() ? esc(bgDate(k.date)) + ' ' : ''}${esc(k.time)} · ${esc(k.washer)}</div>
       <div class="muted" style="font-size:13px">${esc(k.service)}</div>
-      <div style="margin-top:4px">${k.washed ? '<span class="badge ok">мие се / готова</span>' : '<span class="badge gray">чака мияч</span>'}${k.gift ? ' <span class="badge warn">🎁 подарък</span>' : ''}</div></div>
-      <div style="text-align:right"><div class="money" style="font-size:22px">${eur(k.price)}</div><button class="btn green sm" data-charge="${esc(k.id)}" style="margin-top:6px;min-width:96px">Плати</button></div></div></div>`).join('')
-    : '<div class="card"><div class="empty">Няма коли, които чакат плащане.</div></div>';
+      <div style="margin-top:4px">${k.washed ? '<span class="badge ok">мие се / готова</span>' : '<span class="badge gray">чака мияч</span>'}${k.gift ? ' <span class="badge warn">🎁 подарък</span>' : ''}${k.kind === 'firm' ? ` <span class="badge warn">${ic('building', 12)} ${esc(k.firm)}</span>` : ''}</div></div>
+      <div style="text-align:right">${k.kind === 'firm' ? `<div class="muted" style="font-size:12px">фирма · при взимане</div><button class="btn teal sm" data-hand="${esc(k.id)}" style="margin-top:6px;min-width:96px">Предай</button>`
+        : `<div class="money" style="font-size:22px">${eur(k.price)}</div><button class="btn green sm" data-charge="${esc(k.id)}" style="margin-top:6px;min-width:96px">Плати</button>`}</div></div></div>`).join('')
+    : '<div class="card"><div class="empty">Няма коли, които чакат плащане или предаване.</div></div>';
   el.querySelectorAll('[data-charge]').forEach(b => b.onclick = () => chargeModal(L.find(k => k.id === b.dataset.charge), back));
+  el.querySelectorAll('[data-hand]').forEach(b => b.onclick = () => handModal(H.find(k => k.id === b.dataset.hand), back));
 }
+// фирмена кола: шофьорът идва да я вземе — касата печата бележка „ЗА ФИРМАТА“ с часа; шофьорът се подписва на нея
+function handModal(k, back) {
+  if (!k) return;
+  const o = document.createElement('div'); o.className = 'modal';
+  o.innerHTML = `<div class="card" role="dialog" aria-label="Предаване на фирмена кола">
+    <h2 style="font-size:18px">Предаване · талон № ${esc(k.talon)}</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 8px"><span class="pl" style="font-size:22px">${esc(k.plate)}</span><span class="badge warn">${ic('building', 13)} ${esc(k.firm)}</span></div>
+    <div class="muted">${esc(k.service)} · измита ${esc(bgDate(k.date))} ${esc(k.time)}</div>
+    <p style="margin:12px 0 0">Излиза бележка <b>„ЗА ФИРМАТА“</b> с днешния час. Шофьорът я подписва, а ти я прибираш в папката.</p>
+    <label class="l" for="hdName">Име на шофьора (не е задължително)</label><input class="f" id="hdName" autocomplete="off" placeholder="може да го напише и на бележката">
+    <div style="display:flex;gap:8px"><button class="btn sec" id="hdNo">Отказ</button><button class="btn teal" id="hdOk">${ic('print', 18)} Предай и печатай</button></div></div>`;
+  document.body.appendChild(o);
+  $('#hdNo').onclick = () => o.remove();
+  $('#hdOk').onclick = async () => {
+    const b = $('#hdOk'); b.disabled = true;
+    try {
+      const r = await api('handover', { id: k.id, driver: $('#hdName').value.trim(), mode: 'paper' });
+      o.remove(); printFirmSlip(r); toast(`${r.plate} — предадена. Дай бележката на шофьора за подпис.`);
+      await refreshCashierKpis(); back();
+    } catch (e) { toast(e.message, false); b.disabled = false; }
+  };
+}
+// бележка „ЗА ФИРМАТА“ — остава в касата с подписа на шофьора
+function firmSlipHtml(r) {
+  const at = String(r.handedAt || '');
+  return `<div class="talon"><div class="tc"><b>${esc(S.talonName)}</b></div><div class="tlab">ЗА ФИРМАТА</div><div class="tc" style="font-size:11px">остава в касата</div>
+    <div class="tc tbig">ТАЛОН № ${esc(r.talon)}</div><div class="tc">измита ${esc(bgDate(r.date))} ${esc(r.time)}</div><hr>
+    <div class="tc tplate">${esc(r.plate)}</div><div class="tc"><b>${esc(r.firm)}</b></div>
+    ${(r.items || [{ name: r.service, price: r.price }]).map(x => `<div class="trow"><span>${esc(x.name)}</span><span>${eur(x.price)}</span></div>`).join('')}
+    <div class="trow" style="font-weight:800"><span>ОБЩО</span><span>${eur(r.price)}</span></div><hr>
+    <div class="trow" style="font-weight:800"><span>Взета</span><span>${esc(at ? bgDate(at.slice(0, 10)) + ' ' + at.slice(11) : '')}</span></div>
+    <div style="margin-top:12px">Шофьор: ${r.driver ? '<b>' + esc(r.driver) + '</b>' : '......................'}</div>
+    <div style="margin-top:16px">Подпис: ..........................</div>
+    <div class="tc" style="font-size:11px;margin-top:8px">Получих колата измита.</div></div>`;
+}
+function printFirmSlip(r) { $('#printArea').innerHTML = firmSlipHtml(r); if (AUTO_PRINT) setTimeout(PRN.print, 150); }
 async function tabDue() {
   if (S.day && !S.day.shift) return openShiftScreen();
   await refreshCashierKpis();
-  $('#app').innerHTML = `<div class="sec-t">Чакат плащане · ${((S.day && S.day.unpaid) || []).length}</div><div id="dueL"></div>`;
+  $('#app').innerHTML = `<div class="sec-t">Чакат плащане / предаване · ${((S.day && S.day.unpaid) || []).length + ((S.day && S.day.handover) || []).length}</div><div id="dueL"></div>`;
   dueList($('#dueL'), tabDue);
 }
 function chargeModal(k, back) {
@@ -1257,6 +1302,7 @@ async function tabRep() {
   $('#d').onchange = () => { S.repDate = $('#d').value || todayStr(); tabRep(); };
   const shP = api('shifts', { date: S.repDate }).catch(() => null);
   let j; try { j = await api('report', { date: S.repDate }); } catch (e) { $('#rep').textContent = e.message; return; }
+  if (S.tab !== 'rep') return;   // потребителят вече е в друг раздел
   const t = j.totals;
   setKpis([[t.carsKasa, 'талона'], [eur(t.revenue), 'оборот'], [t.noWasher, 'незапочнати', t.noWasher ? 'warn' : 'good']]);
   let h = `<div class="stats">
@@ -1277,6 +1323,7 @@ async function tabRep() {
     j.washers.map(w => `<tr><td><b>${esc(w.name)}</b></td><td>${w.carsKasa}</td><td>${w.logged}</td>
       <td>${eur(w.pay)}</td><td>${eur(w.paidDay)}</td><td><b>${eur(w.owed)}</b></td></tr>`).join('') + '</table></div>';
   let shf = (await shP) || { shifts: [], envelopes: [], envTotal: 0 };
+  if (S.tab !== 'rep') return;   // потребителят вече е в друг раздел
   h += `<div class="sec-t">Смени</div>` + (shf.shifts.length ? shf.shifts.map(s => `<div class="card ${s.closeT && Math.abs(s.diff) >= 0.005 ? 'alert' : ''}">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Смяна № ${s.no} · ${esc(s.openT)}–${esc(s.closeT || 'отворена')}</b>
         ${!s.closeT ? '<span class="badge blue">отворена</span>' : s.mode === 'handover' ? '<span class="badge gray">предадена</span>' : '<span class="badge ok">ден приключен</span>'}</div>
@@ -1329,6 +1376,7 @@ async function tabTalons() {
   $('#app').innerHTML = dateBar('d') + '<div id="tl">' + LOADING() + '</div>';
   $('#d').onchange = () => { S.repDate = $('#d').value || todayStr(); tabTalons(); };
   let j; try { j = await api('report', { date: S.repDate }); } catch (e) { $('#tl').textContent = e.message; return; }
+  if (S.tab !== 'talons') return;   // потребителят вече е в друг раздел
   $('#tl').innerHTML = `<p class="muted" style="margin:0 2px 10px">Касиерът не може да трие или променя талони. Анулира само собственикът, с причина.</p><div class="card">` +
     (j.kasa.length ? j.kasa.map(k => `<div class="row"><div style="min-width:0"><span class="pl">${esc(k.plate)}</span>
       <div class="muted">№${esc(k.talon)} · ${esc(k.time)} · ${esc(k.washer)} · ${k.pay === 'firm' ? esc(k.firm) : PAYL[k.pay].toLowerCase()}<br>${esc(k.service)}${k.void ? '<br>Анулиран: ' + esc(k.reason) : ''}</div></div>
@@ -1348,10 +1396,11 @@ async function tabInv() {
   $('#app').innerHTML = `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><label class="muted" for="fm">Месец</label><input class="f" type="month" id="fm" value="${S.invMonth}" style="padding:8px 10px;font-size:15px"></div><div id="fmr">${LOADING()}</div>`;
   $('#fm').onchange = () => { S.invMonth = $('#fm').value || todayStr().slice(0, 7); tabInv(); };
   let j; try { j = await api('firmMonth', { month: S.invMonth }); } catch (e) { $('#fmr').textContent = e.message; return; }
+  if (S.tab !== 'inv') return;   // потребителят вече е в друг раздел
   const tot = j.firms.reduce((s, f) => s + f.total, 0), paid = j.firms.reduce((s, f) => s + f.paid, 0);
   setKpis([[eur(tot), 'за месеца'], [eur(paid), 'платено', 'good'], [eur(tot - paid), 'остава', tot - paid > 0.004 ? 'warn' : '']]);
   const mName = m => { const [y, mm] = m.split('-'); return ['януари', 'февруари', 'март', 'април', 'май', 'юни', 'юли', 'август', 'септември', 'октомври', 'ноември', 'декември'][+mm - 1] + ' ' + y; };
-  const status = f => f.rest <= 0.004 ? '<span class="badge ok">✓ платено</span>' : f.paid > 0 ? `<span class="badge warn">остава ${eur(f.rest)}</span>` : '<span class="badge bad">неплатено</span>';
+  const status = f => f.rest <= 0.004 ? '<span class="badge ok">✓ платено</span>' : f.paid > 0 ? `<span class="badge warn">остава ${eur(f.rest)}</span>` : '<span class="badge bad">неплатено</span>' + (f.unsigned ? ` <span class="badge bad">${f.unsigned} непредадени</span>` : '');
   $('#fmr').innerHTML = (j.older.length ? `<div class="card alert"><h2>Неплатени от предишни месеци</h2>` + j.older.map(o =>
       `<button class="row" data-om="${o.month}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left"><div><b>${esc(o.firm)}</b><div class="muted">${mName(o.month)} · натисни за да отвориш</div></div><b class="tnum" style="color:var(--red)">${eur(o.rest)}</b></button>`).join('') + '</div>' : '') +
     (j.firms.length ? j.firms.map((f, fi) => `<details class="card"><summary style="list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center">
@@ -1365,7 +1414,9 @@ async function tabInv() {
       <div class="sec-t" style="margin-top:12px">По коли</div>
       ${byCar(f.items).map(c => `<div class="row"><div><span class="pl">${esc(c.plate)}</span><div class="muted">${c.n} ${c.n === 1 ? 'измиване' : 'измивания'}</div></div><b class="tnum">${eur(c.total)}</b></div>`).join('')}
       <div class="sec-t">Всички измивания</div>
-      ${f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => `<div class="row"><div><span class="pl">${esc(i.plate)}</span><div class="muted">${esc(bgDate(i.date))} ${esc(i.time)} · ${esc(i.service)}</div></div><span class="tnum">${eur(i.price)}</span></div>`).join('')}
+      ${f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => `<div class="row"><div><span class="pl">${esc(i.plate)}</span><div class="muted">${esc(bgDate(i.date))} ${esc(i.time)} · ${esc(i.service)}</div>
+        <div style="margin-top:3px">${i.handedAt ? `<span class="badge ok">✍ взета ${esc(String(i.handedAt).slice(11))}${i.driver ? ' · ' + esc(i.driver) : ''}${i.handMode === 'paper' ? ' · подпис на хартия' : ''}</span>` : '<span class="badge bad">не е предадена</span>'}</div></div>
+        <div style="display:flex;align-items:center;gap:8px">${i.sig && i.sig.indexOf('data:image/') === 0 ? `<img src="${i.sig}" alt="подпис" style="height:28px;border:1px solid var(--line);border-radius:6px;background:#fff">` : ''}<span class="tnum">${eur(i.price)}</span></div></div>`).join('')}
     </details>`).join('') : '<div class="empty">Няма измивания на фирми за този месец.</div>');
   document.querySelectorAll('[data-om]').forEach(b => b.onclick = () => { S.invMonth = b.dataset.om; tabInv(); });
   document.querySelectorAll('[data-fp]').forEach(b => b.onclick = () => firmPayModal(j.firms[+b.dataset.fp], j.month, mName(j.month)));
@@ -1393,9 +1444,12 @@ function firmReportHtml(f, label) {
     <h2>По коли</h2><table><tr><th>Рег. номер</th><th class="r">Измивания</th><th class="r">Сума</th></tr>
       ${cars.map(c => `<tr><td>${esc(c.plate)}</td><td class="r">${c.n}</td><td class="r">${e(c.total)}</td></tr>`).join('')}
       <tr class="tot"><td>Общо</td><td class="r">${f.count}</td><td class="r">${e(f.total)}</td></tr></table>
-    <h2>Всички измивания</h2><table><tr><th>№</th><th>Дата</th><th>Час</th><th>Рег. номер</th><th>Услуга</th><th class="r">Цена</th></tr>
-      ${items.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(bgDate(i.date))}</td><td>${esc(i.time)}</td><td>${esc(i.plate)}</td><td>${esc(i.service)}</td><td class="r">${e(i.price)}</td></tr>`).join('')}
-      <tr class="tot"><td colspan="5">Общо за периода</td><td class="r">${e(f.total)}</td></tr></table>
+    <h2>Всички измивания</h2><table><tr><th>№</th><th>Дата</th><th>Час</th><th>Рег. номер</th><th>Услуга</th><th>Взета</th><th>Подпис</th><th class="r">Цена</th></tr>
+      ${items.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(bgDate(i.date))}</td><td>${esc(i.time)}</td><td>${esc(i.plate)}</td><td>${esc(i.service)}</td>
+        <td>${i.handedAt ? esc(bgDate(String(i.handedAt).slice(0, 10)).slice(0, 5)) + ' ' + esc(String(i.handedAt).slice(11)) + (i.driver ? `<div style="font-size:10px;color:#667">${esc(i.driver)}</div>` : '') : '<span style="color:#B91C1C">—</span>'}</td>
+        <td>${i.sig && i.sig.indexOf('data:image/') === 0 ? `<img src="${i.sig}" alt="подпис" style="height:36px;display:block">` : i.handMode === 'paper' ? 'на хартия' : '<span style="color:#B91C1C">няма</span>'}</td>
+        <td class="r">${e(i.price)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="7">Общо за периода</td><td class="r">${e(f.total)}</td></tr></table>
     ${f.pays.length ? `<h2>Плащания</h2><table><tr><th>Дата</th><th>Начин</th><th>Бележка</th><th class="r">Сума</th></tr>
       ${f.pays.map(x => `<tr><td>${esc(bgDate(x.date))}</td><td>${x.method === 'cash' ? 'в брой' : 'по банка'}</td><td>${esc(x.note || '')}</td><td class="r">${e(x.amount)}</td></tr>`).join('')}
       <tr class="tot"><td colspan="3">Остава</td><td class="r">${e(f.rest)}</td></tr></table>` : ''}
@@ -1421,8 +1475,8 @@ function firmReport(f, label) {
   // Excel: CSV файл с всички измивания (отваря се директно в Excel)
   $('#rpCsv').onclick = () => {
     const q = v => '"' + String(v).replace(/"/g, '""') + '"';
-    const rows = [['Дата', 'Час', 'Рег. номер', 'Услуга', 'Цена €']].concat(f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => [bgDate(i.date), i.time, i.plate, i.service, String(i.price.toFixed(2)).replace('.', ',')]));
-    rows.push(['', '', '', 'Общо', String(f.total.toFixed(2)).replace('.', ',')]);
+    const rows = [['Дата', 'Час', 'Рег. номер', 'Услуга', 'Взел колата', 'Подпис', 'Цена €']].concat(f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => [bgDate(i.date), i.time, i.plate, i.service, i.handedAt ? bgDate(String(i.handedAt).slice(0, 10)) + ' ' + String(i.handedAt).slice(11) + (i.driver ? ' ' + i.driver : '') : '', i.handMode === 'paper' ? 'на хартия' : i.sig ? 'да (на екрана)' : 'няма', String(i.price.toFixed(2)).replace('.', ',')]));
+    rows.push(['', '', '', 'Общо', '', '', String(f.total.toFixed(2)).replace('.', ',')]);
     const csv = '\ufeff' + rows.map(r => r.map(q).join(';')).join('\r\n');
     try {
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -1460,34 +1514,43 @@ function firmPayModal(f, month, label) {
 async function tabFirms() {
   $('#app').innerHTML = LOADING();
   let j; try { j = await api('firmsAll'); } catch (e) { $('#app').textContent = e.message; return; }
+  if (S.tab !== 'firms') return;   // потребителят вече е в друг раздел
   S.firmList = j.firms;
-  setKpis([[j.firms.filter(f => f.active).length, 'активни фирми'], [j.firms.reduce((s, f) => s + f.plates.length, 0), 'коли'], [S.prices.length, 'услуги']]);
-  $('#app').innerHTML = `<button class="btn teal" id="fNew" style="margin:0 0 12px">+ Нова фирма</button>` + (j.firms.length ? j.firms.map((f, i) => `<button class="card" data-fi="${i}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(f.name)}</b>${f.active ? '<span class="badge ok">активна</span>' : '<span class="badge gray">спряна</span>'}</div>
-      <div class="muted" style="margin-top:4px">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.plates.length} коли</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}
+  const fs = j.firms.filter(f => f.kind !== 'sub'), ss = j.firms.filter(f => f.kind === 'sub');
+  setKpis([[fs.filter(f => f.active).length, 'активни фирми'], [ss.filter(f => f.active).length, 'активни абонати'], [j.firms.reduce((s, f) => s + f.plates.length, 0), 'коли']]);
+  const card = f => `<button class="card" data-fi="${j.firms.indexOf(f)}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${f.kind === 'sub' ? '⭐ ' : ''}${esc(f.name)}</b>${f.active ? `<span class="badge ok">${f.kind === 'sub' ? 'активен' : 'активна'}</span>` : `<span class="badge gray">${f.kind === 'sub' ? 'спрян' : 'спряна'}</span>`}</div>
+      <div class="muted" style="margin-top:4px">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.plates.length} ${f.plates.length === 1 ? 'кола' : 'коли'}${f.kind === 'sub' ? ' · плаща на място' : f.self ? ' · <b>плаща веднага</b>' : ' · фактура в края на месеца'}</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}
       ${f.debt > 0.004 ? `<div style="margin-top:6px"><span class="badge bad">дължи ${eur(f.debt)}</span></div>` : ''}
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${Object.keys(f.prices).map(k => `<span class="badge blue">${esc(k)} ${eur(f.prices[k])}</span>`).join('')}</div></button>`).join('')
-    : '<div class="empty">Още няма въведени фирми.</div>');
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${Object.keys(f.prices).map(k => `<span class="badge blue">${esc(k)} ${eur(f.prices[k])}</span>`).join('')}</div></button>`;
+  $('#app').innerHTML = `<div style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap"><button class="btn teal" id="fNew" style="flex:1;margin:0">+ Нова фирма</button><button class="btn teal" id="sNew" style="flex:1;margin:0">+ Нов абонат</button></div>
+    <div class="sec-t">Фирми</div>${fs.length ? fs.map(card).join('') : '<div class="empty">Още няма въведени фирми.</div>'}
+    <div class="sec-t">Абонати · свои цени, плащат на място</div>${ss.length ? ss.map(card).join('') : '<div class="empty">Още няма абонати. Абонатът е клиент със свои цени — касата ги слага сама по номера на колата, а той плаща в брой или с карта.</div>'}`;
+  $('#sNew').onclick = () => editFirm(null, true);
   $('#fNew').onclick = () => editFirm(null);
   document.querySelectorAll('[data-fi]').forEach(b => b.onclick = () => editFirm(S.firmList[+b.dataset.fi]));
 }
-function editFirm(f) {
-  const plates = f ? f.plates.slice() : [];
-  $('#app').innerHTML = `<div class="card"><h2 style="font-size:17px">${f ? 'Промяна на фирма' : 'Нова фирма'}</h2>
-    <label class="l" for="fN">Име на фирмата</label><input class="f" id="fN" autocomplete="off" value="${esc(f ? f.name : '')}" placeholder="Транс Лоджистик ЕООД">
-    <label class="l" for="fE">ЕИК</label><input class="f" id="fE" inputmode="numeric" autocomplete="off" value="${esc(f ? f.eik : '')}" placeholder="9 цифри"></div>
+function editFirm(f, isSub) {
+  const plates = f ? f.plates.slice() : [], sub = f ? f.kind === 'sub' : !!isSub;
+  let now = sub || !!(f && f.self);
+  $('#app').innerHTML = `<div class="card"><h2 style="font-size:17px">${sub ? (f ? 'Промяна на абонат' : 'Нов абонат') : (f ? 'Промяна на фирма' : 'Нова фирма')}</h2>
+    ${sub ? '<p class="muted" style="margin-top:-4px">Абонатът има свои цени и плаща на място — в брой или с карта. Не влиза в месечните фактури и не трупа карта за лоялност.</p>' : ''}
+    <label class="l" for="fN">${sub ? 'Име на абоната' : 'Име на фирмата'}</label><input class="f" id="fN" autocomplete="off" value="${esc(f ? f.name : '')}" placeholder="${sub ? 'напр. Иван Петров' : 'Транс Лоджистик ЕООД'}">
+    <div ${sub ? 'hidden' : ''}><label class="l" for="fE">ЕИК</label><input class="f" id="fE" inputmode="numeric" autocomplete="off" value="${esc(f ? f.eik : '')}" placeholder="9 цифри">
+      <label class="l">Как плаща</label><div class="seg" id="fPay" style="grid-template-columns:1fr 1fr"><button type="button" data-fpay="later">🧾 По фактура<br><small style="font-weight:500">в края на месеца</small></button><button type="button" data-fpay="now">💶 Веднага<br><small style="font-weight:500">в брой или карта</small></button></div>
+      <div class="muted" id="fPayHint" style="margin-top:6px"></div></div></div>
     <div class="card"><h2>Контакт</h2>
     <label class="l" for="fC" style="margin-top:0">Лице за контакт</label><input class="f" id="fC" autocomplete="off" value="${esc(f ? f.contact : '')}" placeholder="напр. Николай Петров">
     <label class="l" for="fT">Телефон</label><input class="f" id="fT" type="tel" inputmode="tel" autocomplete="off" value="${esc(f ? f.phone : '')}" placeholder="напр. 0888 123 456">
-    <label class="l" for="fM">Имейл (по желание, за фактурите)</label><input class="f" id="fM" type="email" inputmode="email" autocomplete="off" autocapitalize="none" value="${esc(f ? f.email : '')}" placeholder="office@firma.bg"></div>
-    <div class="card"><h2>Фирмени цени</h2><p class="muted" style="margin-top:-4px">Празно поле = нормалната цена.</p>
+    <label class="l" for="fM">Имейл (по желание${sub ? '' : ', за фактурите'})</label><input class="f" id="fM" type="email" inputmode="email" autocomplete="off" autocapitalize="none" value="${esc(f ? f.email : '')}" placeholder="office@firma.bg"></div>
+    <div class="card"><h2>${sub ? 'Абонатни цени' : 'Фирмени цени'}</h2><p class="muted" style="margin-top:-4px">Празно поле = нормалната цена.</p>
     ${S.prices.map((p, i) => `<div class="row"><span style="display:flex;align-items:center;gap:10px;min-width:0"><span class="ico" style="--c:${COLORS[i % COLORS.length]}">${ic(svcIcon(p.name), 18)}</span>
       <span><b>${esc(p.name)}</b><div class="muted">нормална ${eur(p.price)}</div></span></span>
-      <span style="display:flex;align-items:center;gap:6px;flex:none"><input class="f" data-fp="${esc(p.name)}" inputmode="decimal" style="width:92px;text-align:right;padding:10px" value="${f && f.prices[p.name] ? f.prices[p.name] : ''}" placeholder="${p.price}" aria-label="Фирмена цена за ${esc(p.name)}"> €</span></div>`).join('')}</div>
-    <div class="card"><h2>Коли на фирмата</h2><div id="fP"></div>
+      <span style="display:flex;align-items:center;gap:6px;flex:none"><input class="f" data-fp="${esc(p.name)}" inputmode="decimal" style="width:92px;text-align:right;padding:10px" value="${f && f.prices[p.name] ? f.prices[p.name] : ''}" placeholder="${p.price}" aria-label="${sub ? 'Абонатна' : 'Фирмена'} цена за ${esc(p.name)}"> €</span></div>`).join('')}</div>
+    <div class="card"><h2>${sub ? 'Коли на абоната' : 'Коли на фирмата'}</h2><div id="fP"></div>
     <div style="display:flex;gap:8px;margin-top:6px"><div class="plate-box" style="flex:1;min-width:0;height:54px"><div class="plate-eu" style="width:32px"><i></i>BG</div><input id="fPl" style="font-size:22px" autocomplete="off" autocapitalize="characters" placeholder="СА 1234 ВХ" aria-label="Нов номер"></div>
       <button class="btn sm teal" id="fAdd" style="padding:0 18px">Добави</button></div>
-    <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:600"><input type="checkbox" id="fA" ${!f || f.active ? 'checked' : ''}> Активна — касата може да я избира</label></div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:600"><input type="checkbox" id="fA" ${!f || f.active ? 'checked' : ''}> ${sub ? 'Активен — касата слага абонатните цени' : 'Активна — касата може да я избира'}</label></div>
     <div style="display:flex;gap:8px"><button class="btn sec" id="fCancel">Отказ</button><button class="btn green" id="fSave">Запази</button></div>`;
   const draw = () => {
     $('#fP').innerHTML = plates.length ? plates.map((p, i) => `<span class="pchip">${esc(p)}<button data-rm="${i}" aria-label="Махни ${esc(p)}">×</button></span>`).join('')
@@ -1500,15 +1563,21 @@ function editFirm(f) {
     if (plates.some(p => normPlate(p) === n)) { toast('Този номер вече е в списъка', false); return; }
     plates.push(v); $('#fPl').value = ''; $('#fPl').focus(); draw();
   };
+  const payDraw = () => {
+    document.querySelectorAll('[data-fpay]').forEach(b => b.classList.toggle('on', (b.dataset.fpay === 'now') === now));
+    if ($('#fPayHint')) $('#fPayHint').textContent = now ? 'Касиерът слага фирмените цени, а колата чака плащане като всеки клиент. Не влиза във фактурите.' : 'Колите се записват на фирмата и се плащат с фактура в края на месеца. Шофьорът се подписва при предаване.';
+  };
+  document.querySelectorAll('[data-fpay]').forEach(b => b.onclick = () => { now = b.dataset.fpay === 'now'; payDraw(); });
+  payDraw();
   $('#fAdd').onclick = add;
   $('#fPl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
   $('#fCancel').onclick = tabFirms;
   $('#fSave').onclick = async () => {
     const b = $('#fSave'); b.disabled = true;
     try {
-      await api('saveFirm', { row: f ? f.row : 0, name: $('#fN').value, eik: $('#fE').value, contact: $('#fC').value, phone: $('#fT').value, email: $('#fM').value, plates, active: $('#fA').checked,
+      await api('saveFirm', { row: f ? f.row : 0, name: $('#fN').value, eik: $('#fE').value, contact: $('#fC').value, phone: $('#fT').value, email: $('#fM').value, plates, active: $('#fA').checked, kind: sub ? 'sub' : 'firm', self: now,
         prices: Object.fromEntries([...document.querySelectorAll('[data-fp]')].map(i => [i.dataset.fp, i.value])) });
-      toast('Фирмата е запазена'); tabFirms();
+      toast(sub ? 'Абонатът е запазен' : 'Фирмата е запазена'); tabFirms();
     } catch (e) { toast(e.message, false); b.disabled = false; }
   };
   draw(); window.scrollTo(0, 0);
@@ -1521,6 +1590,7 @@ async function tabMonth() {
   bindSwitch();
   $('#mm').onchange = () => { S.repMonth = $('#mm').value || todayStr().slice(0, 7); tabMonth(); };
   let j; try { j = await api('monthReport', { month: S.repMonth }); } catch (e) { $('#rep').textContent = e.message; return; }
+  if (S.tab !== 'rep') return;   // потребителят вече е в друг раздел
   const t = j.totals, [yy, mm] = S.repMonth.split('-').map(Number), nd = new Date(yy, mm, 0).getDate();
   setKpis([[t.cars, 'коли за месеца'], [eur(t.revenue), 'оборот'], [j.days.length, 'работни дни']]);
   if (!j.days.length) { $('#rep').innerHTML = '<div class="empty">Няма данни за този месец.</div>'; return; }
@@ -1575,9 +1645,10 @@ async function tabClients() {
   };
   $('#cGo').onclick = find; $('#cq').onkeydown = e => { if (e.key === 'Enter') find(); };
   let j; try { j = await api('clients', { days: S.lostDays }); } catch (e) { $('#cl').textContent = e.message; return; }
+  if (S.tab !== 'rep') return;   // потребителят вече е в друг раздел
   const s = j.stats;
   setKpis([[s.month, 'коли този месец'], [s.back, 'върнали се'], [s.fresh, 'нови']]);
-  const tag = c => c.firm ? ` <span class="badge warn" style="padding:2px 8px">фирма</span>` : '';
+  const tag = c => c.firm ? ` <span class="badge ${c.sub ? 'blue' : 'warn'}" style="padding:2px 8px">${c.sub ? 'абонат' : 'фирма'}</span>` : '';
   let h = `<div class="stats">
     <div class="stat" style="--c:var(--teal)"><b>${s.month}</b><span>различни коли този месец</span></div>
     <div class="stat" style="--c:var(--green)"><b>${s.regular}</b><span>идвали 2+ пъти този месец</span></div>
@@ -1601,6 +1672,7 @@ async function tabClients() {
 async function tabSet() {
   $('#app').innerHTML = LOADING();
   let j, us, pr; try { const r = await Promise.all([api('getSettings'), api('users'), api('pricesAll')]); j = r[0]; us = r[1].users; pr = r[2].prices; } catch (e) { $('#app').textContent = e.message; return; }
+  if (S.tab !== 'set') return;   // потребителят вече е в друг раздел
   S.priceList = pr;
   S.userList = us;
   setKpis([[S.prices.length, 'услуги'], [S.washers.length, 'миячи'], [j.clientTalon ? 'Вкл.' : 'Изкл.', 'талон за клиента', j.clientTalon ? 'good' : '']]);
@@ -1744,7 +1816,7 @@ function userWrite(d) {
   if (!d.id) sendLink({ name: d.name, username: d.username, role: d.role }, d.newPass);
   UQn++;
   UQ = UQ.then(() => serverCall('saveUser', d)).then(() => {
-    toast(d.id ? 'Профилът е запазен' : d.name + ' е добавен');
+    toast(d.id ? 'Профилът е запазен' : d.name + ' — профилът е създаден');
     Object.keys(RCACHE).forEach(k => { if (k !== key) RCACHE[k].t = 0; });
   }).catch(e => {
     toast('Не се записа: ' + e.message, false); delete RCACHE[key]; if (S.tab === 'set') tabSet();

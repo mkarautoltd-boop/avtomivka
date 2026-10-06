@@ -4,6 +4,7 @@ function Sheet(name) { this.name = name; this.data = []; this.max = 1000; }
 Sheet.prototype = {
   getLastRow() { let n = this.data.length; while (n && this.data[n - 1].every(v => v === '' || v == null)) n--; return n; },
   getMaxRows() { return this.max; }, insertRowsAfter(a, n) { this.max += n; },
+  getLastColumn() { return (this.data[0] || []).filter(v => v !== '' && v != null).length; }, getMaxColumns() { return this.maxC || 26; }, insertColumnsAfter(a, n) { this.maxC = (this.maxC || 26) + n; },
   setFrozenRows() {}, getName() { return this.name; },
   getRange(r, c, nr = 1, nc = 1) { const sh = this;
     if (r + nr - 1 > sh.max) throw new Error('outside the dimensions of the sheet');
@@ -27,6 +28,7 @@ ctx.Date = class extends Date { constructor(...a) { if (a.length) super(...a); e
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(__dirname + '/../dist/Code.gs', 'utf8'), ctx);
 ctx.setup();
+{ const k = SS.getSheetByName('Талони'); k.data[0] = k.data[0].slice(0, 22); console.log('old kasa header cols', k.getLastColumn()); }
 console.log('sheets:', SS.sheets.map(s => s.name).join(', '));
 const post = b => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(b) } }).s);
 let r = post({ action: 'login', login: 'admin', pass: 'helios2026' }); assert(r.ok, r.error);
@@ -69,4 +71,12 @@ console.log('Талони rows now', kasaSheet.getLastRow() - 1, 'max', kasaShee
 clock = new Date('2026-10-01T09:00:00');
 r = post(Object.assign({ action: 'payroll' }, M)); console.log('next day Иван prev', r.washers[0].prev, 'me prev', r.me.prev);
 r = ctx.doGet(); console.log('doGet', r.s);
+// фирмена кола: предаване с подпис
+r = post(Object.assign({ action: 'addKasa', plate: 'СА 1111 ТТ', services: ['Бус'], washer: 'Иван', cid: 'kf2' }, M)); assert.equal(r.pay, 'firm');
+r = post(Object.assign({ action: 'handover', id: 'kf2', driver: 'Ники', mode: 'sig', sig: 'data:image/png;base64,AAAA' }, M)); assert(r.ok, r.error);
+r = post(Object.assign({ action: 'handover', id: 'kf2', driver: 'Ники', mode: 'sig', sig: 'data:image/png;base64,AAAA' }, M)); assert(!r.ok);
+r = post(Object.assign({ action: 'myDay' }, M)); console.log('handover list', r.handover.map(x => x.plate).join(','));
+r = post(Object.assign({ action: 'firmMonth', month: '2026-10' }, B)); console.log('firm items', JSON.stringify(r.firms[0].items.map(i => [i.plate, i.driver, (i.sig || '').slice(0, 15)])), 'unsigned', r.firms[0].unsigned);
+console.log('kasa header now', SS.getSheetByName('Талони').data[0].slice(20).join(','));
+r = post(Object.assign({ action: 'sync', since: 0 }, M)); console.log('cashier sig', r.delta.tables.kasa.filter(k => k.sig).map(k => k.sig).join(','));
 console.log('GAS OK');
