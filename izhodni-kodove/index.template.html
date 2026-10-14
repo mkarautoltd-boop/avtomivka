@@ -237,7 +237,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="toast" id="toast" role="status"></div>
 <div id="printArea"></div>
 
-<script src="engine.js?v=0496ef13"></script><!--ENGINE-->
+<script src="engine.js?v=b21b5c8c"></script><!--ENGINE-->
 <script>
 // ▼▼▼ Постави тук URL-а на уеб приложението от Apps Script ▼▼▼
 const API_URL = 'ПОСТАВИ_ТУК_URL_ОТ_APPS_SCRIPT';
@@ -444,14 +444,22 @@ async function saveLocal() { if (PERSIST) { await IDB.set(REPKEY, REP); await ID
 async function openReplica() { if (REP || !PERSIST) return; REP = (await IDB.get(REPKEY)) || null; NET.queue = (await IDB.get(QKEY)) || []; }
 function creds() { try { return JSON.parse(load('hl_creds') || '{}'); } catch (e) { return {}; } }
 function credHash(login, pass) { return HELIOS.sha256('cred|' + String(login).toLowerCase() + '|' + pass); }
-function mergeDelta(d) { if (!REP) REP = HELIOS.emptyDb(); HELIOS.applyDelta(REP, d); }
+function mergeDelta(d) {
+  if (!REP) REP = HELIOS.emptyDb();
+  if (d && d.meta && (REP.meta.epoch || '') !== (d.meta.epoch || '') && (Number(REP.meta.v) || 0) > 0) {   // собственикът е занулил касата
+    REP = HELIOS.emptyDb(); NET.queue = []; NET.failed = []; REP.meta.epoch = d.meta.epoch || '';
+    setTimeout(() => syncNow(true).then(() => { if (cashierMode()) { refreshCashierKpis(); if (S.tab) go(S.tab); } toast('Касата е занулена от собственика — започва се на чисто'); }).catch(() => {}), 0);
+    return;
+  }
+  HELIOS.applyDelta(REP, d);
+}
 function goOffline() { if (!NET.off) { NET.off = true; netBar(); } }
 function goOnline() { if (NET.off) { NET.off = false; netBar(); } }
 
 async function syncNow(full) {
   const j = await post(Object.assign({ action: 'sync', since: full || !REP ? 0 : REP.meta.v }, cred()));
   if (!j.ok) throw new AppError(j.error || 'Грешка');
-  if (full || !REP) REP = HELIOS.emptyDb();
+  if (full || !REP) { REP = HELIOS.emptyDb(); REP.meta.epoch = (j.delta.meta && j.delta.meta.epoch) || ''; }
   mergeDelta(j.delta); await saveLocal();
 }
 function localRun(action, data, extra) {
@@ -473,7 +481,7 @@ async function serverCall(action, data) {
 // запис от касата: онлайн — направо на сървъра; без интернет — на касата + в опашката
 const FAST_WRITE = ['addKasa', 'payKasa', 'handover'];   // стават веднага на касата, сървърът се обновява отзад
 async function cashierWrite(action, data) {
-  const cid = newCid(), item = Object.assign({ action, cid, by: S.uid }, data), fast = FAST_WRITE.indexOf(action) >= 0 && !!REP;
+  const cid = newCid(), item = Object.assign({ action, cid, by: S.uid, ep: (REP && REP.meta.epoch) || '' }, data), fast = FAST_WRITE.indexOf(action) >= 0 && !!REP;
   if (!NET.off && !fast) {
     await flushQueue();
     if (!NET.off && !NET.queue.length) {
@@ -862,7 +870,9 @@ async function closeShiftStart(mode) {
   let st, pr; try { st = await api('shiftState'); pr = await api('payroll'); } catch (e) { toast(e.message, false); return; }
   if (!st.shift) { toast('Няма отворена смяна', false); return; }
   let pend = []; try { pend = (await api('report', { date: todayStr() })).noWasher || []; } catch (e) {}
-  const owed = pr.washers.filter(w => w.owed > 0.004), cnt = {};
+  const owed = pr.washers.filter(w => w.owed > 0.004).map(w => ({ name: w.name, owed: w.owed, what: 'заплата' })), cnt = {};
+  if (pr.me && pr.me.owed > 0.004) owed.push({ name: pr.me.name, owed: pr.me.owed, what: 'надник' });
+  S.owedNow = owed;
   $('#app').classList.remove('has-side'); $('#bar').innerHTML = '';
   $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto">
     <div class="card"><h2 style="font-size:20px">${mode === 'handover' ? 'Предаване на смяна' : 'Приключване на деня'} · смяна № ${st.shift.no}</h2>
@@ -871,8 +881,8 @@ async function closeShiftStart(mode) {
         <div class="muted">Вземи парите преди да приключиш. Ако останат, ще се виждат и утре в „Плащане“.</div></div>` : ''}
       ${mode === 'day' && (pend.length || owed.length) ? `<div class="card alert amb" style="margin:12px 0 0;box-shadow:none;background:#FFFBEB"><b>Преди да приключиш деня:</b>
         ${pend.length ? `<div class="muted">• ${pend.length} ${pend.length === 1 ? 'талон не е започнат' : 'талона не са започнати'} от мияч</div>` : ''}
-        ${owed.map(w => `<div class="muted">• ${esc(w.name)} има да взема ${eur(w.owed)}</div>`).join('')}
-        <div class="muted" style="margin-top:4px">Можеш да приключиш и така — дълговете се пренасят.</div></div>` : ''}</div>
+        ${owed.map(w => `<div class="muted">• ${esc(w.name)} има да взема ${eur(w.owed)} (${w.what})</div>`).join('')}
+        <div class="muted" style="margin-top:4px">Можеш да приключиш и така — дълговете се пренасят за следващия ден и се печатат на отчета.</div></div>` : ''}</div>
     <div class="card"><h2>Преброй парите в касата</h2><p class="muted" style="margin-top:-4px">Въведи колко броя от всяка банкнота и монета.</p>
       ${DENOMS.map(d => `<div class="row" style="padding:6px 0"><b style="width:80px">${d >= 1 ? d + ' €' : Math.round(d * 100) + ' ст.'}</b>
         <span style="display:flex;align-items:center;gap:6px"><button class="btn sm sec" data-dn="${d}" data-op="-1" style="width:44px;height:44px;font-size:20px">−</button>
@@ -905,7 +915,7 @@ function closeShiftStep2(st, counted, mode) {
   $('#cDo').onclick = async () => {
     try {
       const r = await api('closeShift', { mode, counted, leftFloat: hand ? counted : $('#left').value });
-      const s = r.shift; $('#printArea').innerHTML = shiftSlipHtml(s); if (AUTO_PRINT) setTimeout(PRN.print, 150);
+      const s = r.shift; s.owedList = S.owedNow || []; $('#printArea').innerHTML = shiftSlipHtml(s); if (AUTO_PRINT) setTimeout(PRN.print, 150);
       if (hand) {
         S.loginMsg = `Смяна № ${s.no} е предадена от ${S.user.name}. В касата: ${eur(s.counted)}. Следващият касиер да влезе.`;
         S.lastSlip = s; setTimeout(logout, AUTO_PRINT ? 1500 : 200); return;
@@ -927,6 +937,7 @@ function shiftSlipHtml(s) {
     ${r('Талони', s.talons + ' бр.')}${s.voided ? r('Анулирани', s.voided + ' бр.') : ''}${r('Оборот общо', e(s.revenue))}${r('&nbsp;в брой', e(s.cash))}${r('&nbsp;карта', e(s.card))}${r('&nbsp;фирми', e(s.firm))}${s.unpaidN ? r('Чакат плащане', s.unpaidN + ' бр. · ' + e(s.unpaidSum)) : ''}<hr>
     ${r('Начална сума', e(s.openCash))}${r('+ В брой', e(s.cash))}${(s.takes || []).map(t => r('+ ' + esc(t.env.replace('Плик смяна', 'Плик')), e(t.amount))).join('')}${(s.tillByWasher || []).map(w => r((w.cashier ? '− Надник ' : '− Заплата ') + esc(w.name), e(w.amount))).join('')}
     ${r('ТРЯБВА ДА ИМА', e(s.expected), 1)}${r('ПРЕБРОЕНО', e(s.counted), 1)}${r('РАЗЛИКА', (s.diff > 0 ? '+' : '') + e(s.diff), 1)}<hr>
+    ${(s.owedList || []).length ? `<div class="tc" style="font-weight:800">ИМА ДА ВЗЕМАТ</div>${s.owedList.map(w => r(esc(w.name) + ' (' + w.what + ')', e(w.owed))).join('')}<hr>` : ''}
     ${hand ? `<div class="tc" style="font-weight:800;font-size:15px;border:1.5px solid #000;border-radius:4px;margin:4px 0">ПРЕДАДЕНИ В КАСАТА: ${e(s.counted)} €</div><div style="margin-top:12px">Предал: ${esc(s.closeBy)} ..........</div><div style="margin-top:12px">Приел: ...................</div>`
       : `<div class="tc" style="font-weight:800;font-size:16px;border:1.5px solid #000;border-radius:4px;margin:4px 0">В ПЛИКА: ${e(s.envelope)} €</div>${r('Остава за ресто', e(s.leftFloat))}<hr>
     <div style="margin-top:12px">Касиер: ..................</div><div style="margin-top:12px">Приел: ...................</div>`}</div>`;

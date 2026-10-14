@@ -601,7 +601,7 @@ var HELIOS = (function () {
   }
   function delta(db, since, touch) {
     since = Number(since) || 0; var tset = {}; (touch || []).forEach(function (id) { tset[id] = 1; });
-    var out = { tables: {}, meta: { seq: db.meta.seq, v: db.meta.v } };
+    var out = { tables: {}, meta: { seq: db.meta.seq, v: db.meta.v, epoch: db.meta.epoch || '' } };
     SYNCED.forEach(function (t) {
       var rows = db[t].filter(function (r) { return since === 0 || (Number(r.v) || 0) > since || tset[r.id]; });
       if (t === 'users') rows = rows.map(function (r) { var c = Object.assign({}, r); delete c.salt; delete c.hash; return c; });
@@ -618,7 +618,7 @@ var HELIOS = (function () {
       d.tables[t].forEach(function (r) { if (idx[r.id] != null) arr[idx[r.id]] = r; else { idx[r.id] = arr.length; arr.push(r); } });
     });
     if (d.settings) rep.settings = d.settings;
-    if (d.meta) { rep.meta = rep.meta || {}; rep.meta.v = d.meta.v; rep.meta.seq = d.meta.seq; }
+    if (d.meta) { rep.meta = rep.meta || {}; rep.meta.v = d.meta.v; rep.meta.seq = d.meta.seq; rep.meta.epoch = d.meta.epoch || ''; }
   }
   function emptyDb() {
     var db = { settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), meta: { seq: 0, v: 0, sv: 0 } };
@@ -647,6 +647,7 @@ var HELIOS = (function () {
         if (['cashier', 'admin'].indexOf(u.role) < 0) throw new Error('Нямаш права за това');
         out = { results: (p.items || []).map(function (it) {
           if (it.cid && done(it.cid)) return { cid: it.cid, ok: true, dup: true };
+          if ((it.ep || '') !== (db.meta.epoch || '')) return { cid: it.cid, ok: true, dup: true };   // запис отпреди зануляването — не се връща
           if (OFFLINE_WRITE.indexOf(it.action) < 0) return { cid: it.cid, ok: false, error: 'Непозната операция' };
           var who = db.users.filter(function (x) { return x.active && x.username === String(it.by || '').toLowerCase() && (x.role === 'cashier' || x.role === 'admin'); })[0] || u;
           var s2 = snapshot(db);
