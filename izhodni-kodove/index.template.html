@@ -169,6 +169,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 .talon .tc{text-align:center}.talon .tbig{font-size:22px;font-weight:800;margin:4px 0}.talon .tplate{font-size:26px;font-weight:800;letter-spacing:2px}
 .talon .trow{display:flex;justify-content:space-between;gap:8px}.talon hr{border:0;border-top:1px dashed #000;margin:8px 0}
 #printArea{display:none}
+.go.pressed,.btn.pressed{filter:brightness(.85);transform:scale(.98)}
 @media print{@page{size:58mm auto;margin:0}body>*:not(#printArea){display:none!important}#printArea{display:block!important}body{background:#fff}.talon{border:0;max-width:none;width:58mm;padding:2mm 3mm;font-size:12px}}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(150px + env(safe-area-inset-bottom,0px));max-width:520px;margin:auto;padding:14px;border-radius:14px;color:#fff;font-weight:700;text-align:center;z-index:40;display:none}
 .pend{width:100%;display:flex;align-items:center;gap:12px;background:#FFFBEB;border:2px solid var(--teal);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer;box-shadow:0 4px 14px rgba(242,194,48,.25)}
@@ -470,9 +471,10 @@ async function serverCall(action, data) {
   return j;
 }
 // запис от касата: онлайн — направо на сървъра; без интернет — на касата + в опашката
+const FAST_WRITE = ['addKasa', 'payKasa', 'handover'];   // стават веднага на касата, сървърът се обновява отзад
 async function cashierWrite(action, data) {
-  const cid = newCid(), item = Object.assign({ action, cid, by: S.uid }, data);
-  if (!NET.off) {
+  const cid = newCid(), item = Object.assign({ action, cid, by: S.uid }, data), fast = FAST_WRITE.indexOf(action) >= 0 && !!REP;
+  if (!NET.off && !fast) {
     await flushQueue();
     if (!NET.off && !NET.queue.length) {
       let j = null;
@@ -491,7 +493,9 @@ async function cashierWrite(action, data) {
   const ch = HELIOS.diff(REP, snap);
   Object.assign(item, { _d: at._d, _t: at._t, touch: ch.ids });
   if (r.talon) item.talon = r.talon;
-  NET.queue.push(item); await saveLocal(); netBar();
+  NET.queue.push(item); await saveLocal();
+  if (fast && !NET.off) { if (NET.queue.length === 1) NET.quiet = true; setTimeout(flushQueue, 0); }
+  netBar();
   return r;
 }
 const ACT_BG = { addKasa: 'талон', payKasa: 'плащане на талон', payWasher: 'заплата на мияч', takeWage: 'надник', envTake: 'пари от плик', openShift: 'отваряне на смяна', closeShift: 'затваряне на смяна', login: 'влизане' };
@@ -514,6 +518,7 @@ async function flushQueue() {
   } catch (e) { if (e instanceof AppError) toast(e.message, false); else goOffline(); }
   finally {
     NET.flushing = false; NET.syncing = false; netBar();
+    if (NET.quiet) { NET.quiet = false; NET.sent = 0; netBar(); }
     if (NET.sent) setTimeout(() => { NET.sent = 0; netBar(); }, 4000);
     if (cashierMode()) refreshCashierKpis();
   }
@@ -586,7 +591,7 @@ function netBar() {
   const el = $('#net'); if (!el) return;
   if (!S.user || S.user.role !== 'cashier') { el.innerHTML = ''; return; }
   const n = NET.queue.length, w = x => x === 1 ? 'запис' : 'записа';
-  el.innerHTML = (NET.syncing ? `<div class="net sync">⟳ Изпращам ${n} ${w(n)}…</div>`
+  el.innerHTML = (NET.quiet && !NET.off ? '' : NET.syncing ? `<div class="net sync">⟳ Изпращам ${n} ${w(n)}…</div>`
     : NET.off ? `<div class="net off">📵 <span><b>Няма интернет.</b> Работиш нормално — всичко се пази на компютъра${n ? `. Чакат за изпращане: <b>${n}</b>` : ''}.</span></div>`
     : NET.sent ? `<div class="net done">✓ Изпратено: ${NET.sent} ${w(NET.sent)}. Всичко е наред.</div>` : '')
     + (NET.failed.length ? `<div class="net off" style="flex-wrap:wrap">⚠ <span style="flex:1"><b>Не минаха ${NET.failed.length} ${w(NET.failed.length)} от времето без интернет:</b> ${NET.failed.map(f => esc(f.what) + ' — ' + esc(f.error)).join('; ')}</span><button class="btn sm sec" id="netOk" style="margin:0">Разбрах</button></div>` : '');
@@ -1035,16 +1040,19 @@ async function saveTalon() {
   if (!F.svcs.length) { toast('Избери поне една услуга', false); return; }
   if (!F.washer) { toast('Избери кой мие колата', false); return; }
   b.disabled = true; if (b2) b2.disabled = true;
+  const lbl = [b, b2].filter(Boolean).map(x => [x, x.innerHTML]);
+  lbl.forEach(([x]) => { x.innerHTML = '⏳ Печата…'; x.classList.add('pressed'); });
   try {
     const j = await api('addKasa', { plate: F.plate, services: F.svcs, washer: F.washer, pay: F.pay, useGift: !!giftNow() });
     printTalon(j, false);
+    toast('🖨 Талон № ' + j.talon + ' · ' + j.plate + ' — печата се');
     Object.assign(F, { plate: '', svcs: [], washer: '', pay: null, autoFirm: false, kb: 'bg', loy: null, useGift: false });
     await refreshCashierKpis(); tabNew(); window.scrollTo(0, 0);
     $('#lastT').innerHTML = `<div class="last">${ic('check', 22).replace('currentColor', '#16A34A')}<div><b>Талон № ${esc(j.talon)} · ${esc(j.plate)}</b>
       <div class="muted">${eur(j.price)}${j.pay ? '' : ' · плаща при взимане'} · ${esc(j.washer)}${AUTO_PRINT ? ' · отпечатан' : ' · в демото не се печата'}</div></div>
       <button class="btn sm sec" style="margin-left:auto" id="seeT">Виж</button></div>`;
     $('#seeT').onclick = () => showTalon(j);
-  } catch (e) { toast(e.message, false); b.disabled = false; if (b2) b2.disabled = false; }
+  } catch (e) { toast(e.message, false); lbl.forEach(([x, h]) => { x.innerHTML = h; x.classList.remove('pressed'); x.disabled = false; }); }
 }
 // талони, които чакат плащане — клиентът плаща, когато си вземе колата
 function dueList(el, back) {
@@ -1075,12 +1083,12 @@ function handModal(k, back) {
   document.body.appendChild(o);
   $('#hdNo').onclick = () => o.remove();
   $('#hdOk').onclick = async () => {
-    const b = $('#hdOk'); b.disabled = true;
+    const b = $('#hdOk'), h0 = b.innerHTML; b.disabled = true; b.innerHTML = '⏳ Печата…'; b.classList.add('pressed');
     try {
       const r = await api('handover', { id: k.id, driver: $('#hdName').value.trim(), mode: 'paper' });
       o.remove(); printFirmSlip(r); toast(`${r.plate} — предадена. Дай бележката на шофьора за подпис.`);
       await refreshCashierKpis(); back();
-    } catch (e) { toast(e.message, false); b.disabled = false; }
+    } catch (e) { toast(e.message, false); b.disabled = false; b.innerHTML = h0; b.classList.remove('pressed'); }
   };
 }
 // бележка „ЗА ФИРМАТА“ — остава в касата с подписа на шофьора
@@ -1127,10 +1135,10 @@ function chargeModal(k, back) {
     if ($('#cgGot')) $('#cgGot').oninput = e => { st.got = e.target.value; const c = e.target.selectionStart; draw(); const i = $('#cgGot'); i.focus(); i.setSelectionRange(c, c); };
     $('#cgNo').onclick = () => o.remove();
     $('#cgOk').onclick = async () => {
-      const b = $('#cgOk'); b.disabled = true;
+      const b = $('#cgOk'); b.disabled = true; b.textContent = '⏳ Записва…'; b.classList.add('pressed');
       try { const r = await api('payKasa', { id: k.id, pay: st.pay }); o.remove(); toast(`Талон № ${r.talon} · ${r.plate} — платено ${eur(r.price)} ${r.pay === 'cash' ? 'в брой' : 'с карта'}`);
         await refreshCashierKpis(); back(); }
-      catch (e) { toast(e.message, false); b.disabled = false; }
+      catch (e) { toast(e.message, false); b.disabled = false; b.textContent = 'Платено'; b.classList.remove('pressed'); }
     };
   };
   document.body.appendChild(o); draw();
