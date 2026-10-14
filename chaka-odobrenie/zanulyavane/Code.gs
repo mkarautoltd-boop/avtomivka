@@ -10,7 +10,7 @@ var HELIOS = (function () {
   // тип: s = текст, S = текст или празно, n = число, N = число или празно, b = да/не, j = JSON
   var TABLES = {
     users:    { sheet: 'Потребители', cols: [['id','s'],['name','s'],['username','s'],['role','s'],['active','b'],['canAddWashers','b'],['dayWage','n'],['salt','s'],['hash','s'],['v','n']] },
-    prices:   { sheet: 'Услуги', cols: [['id','s'],['name','s'],['price','n'],['active','b'],['ord','n'],['v','n'],['gift','b']] },
+    prices:   { sheet: 'Услуги', cols: [['id','s'],['name','s'],['price','n'],['active','b'],['ord','n'],['v','n']] },
     firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n'],['self','b'],['kind','s']] },
     kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n'],['handedAt','S'],['handedBy','S'],['driver','S'],['handMode','S'],['sig','S']] },
     wash:     { sheet: 'Миене', cols: [['id','s'],['date','s'],['time','s'],['plate','s'],['np','s'],['service','s'],['washer','s'],['v','n']] },
@@ -85,15 +85,21 @@ var HELIOS = (function () {
     var wb = function (k) { return k.price + (SET().loyalty.payWasher ? (k.gift || 0) : 0); };   // база за заплатата на мияча
     var washers = function () { return db.users.filter(function (u) { return u.role === 'washer' && u.active; }).map(function (u) { return u.name; }); };
     var pricesSorted = function () { return db.prices.slice().sort(function (a, b) { return a.ord - b.ord; }); };
-    var activeP = function () { return pricesSorted().filter(function (x) { return x.active; }).map(function (x) { return { name: x.name, price: x.price, gift: !!x.gift }; }); };
+    var activeP = function () { return pricesSorted().filter(function (x) { return x.active; }).map(function (x) { return { name: x.name, price: x.price }; }); };
     var fkind = function (f) { return f.kind || (f.self ? 'sub' : 'firm'); };   // фирма или абонат
     var activeFirms = function () { return db.firms.filter(function (f) { return f.active; }).map(function (f) { return { name: f.name, eik: f.eik, prices: f.prices || {}, plates: (f.list || []).map(norm), self: !!f.self, kind: fkind(f) }; }); };
     var firmOf = function (np) { return activeFirms().filter(function (f) { return f.plates.indexOf(np) >= 0; })[0]; };
 
-    function giftCap(items) {
-      var main = db.prices.filter(function (x) { return x.gift; }).map(function (x) { return x.name; });
-      if (!main.length) return SET().loyalty.maxValue;
-      return items.reduce(function (m, x) { return main.indexOf(x.name) >= 0 ? Math.max(m, x.price) : m; }, 0);
+    // стойност на подаръка: сумата, която клиентът е плащал най-често от последния подарък насам
+    function giftValue(np) {
+      var win = [];
+      db.kasa.filter(function (k) { return !k.void && k.np === np && k.pay !== 'firm'; }).sort(function (a, b) { return a.seq - b.seq; })
+        .forEach(function (k) { if (k.gift) win = []; else win.push(r2(k.price)); });
+      if (!win.length) return SET().loyalty.maxValue;
+      var cnt = {}, best = null;
+      win.forEach(function (v, i) { cnt[v] = (cnt[v] || 0) + 1; });
+      for (var i = win.length - 1; i >= 0; i--) { var v = win[i]; if (best === null || cnt[v] > cnt[best]) best = v; }   // при равенство — най-скорошната
+      return best;
     }
     function stamps(np) {
       var c = 0;
@@ -239,14 +245,14 @@ var HELIOS = (function () {
           need(u, ['cashier', 'admin']);
           var np = norm(p.plate), L = S.loyalty;
           if (!L.on || np.length < 3 || firmOf(np)) return { on: false };
-          var c = stamps(np); return { on: true, every: L.every, maxValue: L.maxValue, stamps: c, freeNow: c >= L.every - 1 };
+          var c = stamps(np); return { on: true, every: L.every, maxValue: giftValue(np), stamps: c, freeNow: c >= L.every - 1 };
         }
         case 'saveSettings':
           need(u, ['admin']);
           if (!String(p.talonName || '').trim()) throw new Error('Въведи име на автомивката');
           S.talonName = String(p.talonName).trim(); S.address = String(p.address || '').trim(); S.clientTalon = !!p.clientTalon; return {};
 
-        case 'pricesAll': need(u, ['admin']); return { prices: pricesSorted().map(function (x) { return { id: x.id, name: x.name, price: x.price, active: x.active, gift: !!x.gift }; }) };
+        case 'pricesAll': need(u, ['admin']); return { prices: pricesSorted().map(function (x) { return { id: x.id, name: x.name, price: x.price, active: x.active }; }) };
         case 'savePrice': {
           need(u, ['admin']);
           var pn = String(p.name || '').trim(), price = num(p.price);
@@ -257,8 +263,8 @@ var HELIOS = (function () {
           if (pe && pe.name !== pn) db.firms.forEach(function (f) {   // фирмените цени следват новото име
             if (f.prices && f.prices[pe.name] !== undefined) { var np2 = Object.assign({}, f.prices); np2[pn] = np2[pe.name]; delete np2[pe.name]; f.prices = np2; }
           });
-          if (pe) Object.assign(pe, { name: pn, price: price, active: p.active !== false, gift: !!p.gift });
-          else db.prices.push({ id: uid('s'), name: pn, price: price, active: true, gift: !!p.gift, ord: db.prices.reduce(function (m, x) { return Math.max(m, x.ord); }, 0) + 1 });
+          if (pe) Object.assign(pe, { name: pn, price: price, active: p.active !== false });
+          else db.prices.push({ id: uid('s'), name: pn, price: price, active: true, ord: db.prices.reduce(function (m, x) { return Math.max(m, x.ord); }, 0) + 1 });
           return { prices: activeP() };
         }
         case 'movePrice': {
@@ -289,7 +295,7 @@ var HELIOS = (function () {
             plate: plate, np: np0, service: items.map(function (x) { return x.name; }).join(' + '), items: items,
             price: r2(sum(items, function (x) { return x.price; })), gift: 0, washer: p.washer, cashier: u.name, void: false, reason: '',
             pay: f && !f.self ? 'firm' : null, firm: f ? f.name : '', paySeq: null, payDate: null, paidAt: null, paidBy: null };
-          if (eligible && p.useGift) { k.gift = r2(Math.min(giftCap(items), k.price)); k.price = r2(k.price - k.gift); }
+          if (eligible && p.useGift) { k.gift = r2(Math.min(giftValue(np0), k.price)); k.price = r2(k.price - k.gift); }
           if (!k.pay && k.price <= 0) { k.pay = 'cash'; k.paySeq = seq; k.payDate = T; k.paidAt = time; k.paidBy = u.name; }   // изцяло подарък
           db.kasa.push(k);
           var st = L2.on && !f ? stamps(np0) : null;
