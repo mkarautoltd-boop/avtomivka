@@ -870,7 +870,9 @@ async function closeShiftStart(mode) {
   let st, pr; try { st = await api('shiftState'); pr = await api('payroll'); } catch (e) { toast(e.message, false); return; }
   if (!st.shift) { toast('Няма отворена смяна', false); return; }
   let pend = []; try { pend = (await api('report', { date: todayStr() })).noWasher || []; } catch (e) {}
-  const owed = pr.washers.filter(w => w.owed > 0.004), cnt = {};
+  const owed = pr.washers.filter(w => w.owed > 0.004).map(w => ({ name: w.name, owed: w.owed, what: 'заплата' })), cnt = {};
+  if (pr.me && pr.me.owed > 0.004) owed.push({ name: pr.me.name, owed: pr.me.owed, what: 'надник' });
+  S.owedNow = owed;
   $('#app').classList.remove('has-side'); $('#bar').innerHTML = '';
   $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto">
     <div class="card"><h2 style="font-size:20px">${mode === 'handover' ? 'Предаване на смяна' : 'Приключване на деня'} · смяна № ${st.shift.no}</h2>
@@ -879,8 +881,8 @@ async function closeShiftStart(mode) {
         <div class="muted">Вземи парите преди да приключиш. Ако останат, ще се виждат и утре в „Плащане“.</div></div>` : ''}
       ${mode === 'day' && (pend.length || owed.length) ? `<div class="card alert amb" style="margin:12px 0 0;box-shadow:none;background:#FFFBEB"><b>Преди да приключиш деня:</b>
         ${pend.length ? `<div class="muted">• ${pend.length} ${pend.length === 1 ? 'талон не е започнат' : 'талона не са започнати'} от мияч</div>` : ''}
-        ${owed.map(w => `<div class="muted">• ${esc(w.name)} има да взема ${eur(w.owed)}</div>`).join('')}
-        <div class="muted" style="margin-top:4px">Можеш да приключиш и така — дълговете се пренасят.</div></div>` : ''}</div>
+        ${owed.map(w => `<div class="muted">• ${esc(w.name)} има да взема ${eur(w.owed)} (${w.what})</div>`).join('')}
+        <div class="muted" style="margin-top:4px">Можеш да приключиш и така — дълговете се пренасят за следващия ден и се печатат на отчета.</div></div>` : ''}</div>
     <div class="card"><h2>Преброй парите в касата</h2><p class="muted" style="margin-top:-4px">Въведи колко броя от всяка банкнота и монета.</p>
       ${DENOMS.map(d => `<div class="row" style="padding:6px 0"><b style="width:80px">${d >= 1 ? d + ' €' : Math.round(d * 100) + ' ст.'}</b>
         <span style="display:flex;align-items:center;gap:6px"><button class="btn sm sec" data-dn="${d}" data-op="-1" style="width:44px;height:44px;font-size:20px">−</button>
@@ -913,7 +915,7 @@ function closeShiftStep2(st, counted, mode) {
   $('#cDo').onclick = async () => {
     try {
       const r = await api('closeShift', { mode, counted, leftFloat: hand ? counted : $('#left').value });
-      const s = r.shift; $('#printArea').innerHTML = shiftSlipHtml(s); if (AUTO_PRINT) setTimeout(PRN.print, 150);
+      const s = r.shift; s.owedList = S.owedNow || []; $('#printArea').innerHTML = shiftSlipHtml(s); if (AUTO_PRINT) setTimeout(PRN.print, 150);
       if (hand) {
         S.loginMsg = `Смяна № ${s.no} е предадена от ${S.user.name}. В касата: ${eur(s.counted)}. Следващият касиер да влезе.`;
         S.lastSlip = s; setTimeout(logout, AUTO_PRINT ? 1500 : 200); return;
@@ -935,6 +937,7 @@ function shiftSlipHtml(s) {
     ${r('Талони', s.talons + ' бр.')}${s.voided ? r('Анулирани', s.voided + ' бр.') : ''}${r('Оборот общо', e(s.revenue))}${r('&nbsp;в брой', e(s.cash))}${r('&nbsp;карта', e(s.card))}${r('&nbsp;фирми', e(s.firm))}${s.unpaidN ? r('Чакат плащане', s.unpaidN + ' бр. · ' + e(s.unpaidSum)) : ''}<hr>
     ${r('Начална сума', e(s.openCash))}${r('+ В брой', e(s.cash))}${(s.takes || []).map(t => r('+ ' + esc(t.env.replace('Плик смяна', 'Плик')), e(t.amount))).join('')}${(s.tillByWasher || []).map(w => r((w.cashier ? '− Надник ' : '− Заплата ') + esc(w.name), e(w.amount))).join('')}
     ${r('ТРЯБВА ДА ИМА', e(s.expected), 1)}${r('ПРЕБРОЕНО', e(s.counted), 1)}${r('РАЗЛИКА', (s.diff > 0 ? '+' : '') + e(s.diff), 1)}<hr>
+    ${(s.owedList || []).length ? `<div class="tc" style="font-weight:800">ИМА ДА ВЗЕМАТ</div>${s.owedList.map(w => r(esc(w.name) + ' (' + w.what + ')', e(w.owed))).join('')}<hr>` : ''}
     ${hand ? `<div class="tc" style="font-weight:800;font-size:15px;border:1.5px solid #000;border-radius:4px;margin:4px 0">ПРЕДАДЕНИ В КАСАТА: ${e(s.counted)} €</div><div style="margin-top:12px">Предал: ${esc(s.closeBy)} ..........</div><div style="margin-top:12px">Приел: ...................</div>`
       : `<div class="tc" style="font-weight:800;font-size:16px;border:1.5px solid #000;border-radius:4px;margin:4px 0">В ПЛИКА: ${e(s.envelope)} €</div>${r('Остава за ресто', e(s.leftFloat))}<hr>
     <div style="margin-top:12px">Касиер: ..................</div><div style="margin-top:12px">Приел: ...................</div>`}</div>`;
@@ -1024,8 +1027,9 @@ function checkLoy() {
 }
 function giftNow() {
   const L = F.loy; if (!L || !L.freeNow || !F.useGift || F.pay === 'firm') return 0;
-  const gross = S.prices.filter(p => F.svcs.indexOf(p.name) >= 0).reduce((s, p) => s + priceOf(p), 0);
-  return Math.min(L.maxValue, gross);
+  const sel = S.prices.filter(p => F.svcs.indexOf(p.name) >= 0), gross = sel.reduce((s, p) => s + priceOf(p), 0);
+  const main = S.prices.filter(p => p.gift).length ? sel.filter(p => p.gift).reduce((m, p) => Math.max(m, priceOf(p)), 0) : L.maxValue;
+  return Math.min(main, gross);
 }
 function drawLoy() {
   const el = $('#loy'); if (!el) return;
@@ -1033,7 +1037,7 @@ function drawLoy() {
   if (!L || F.pay === 'firm') { el.innerHTML = ''; return; }
   if (L.freeNow) {
     el.innerHTML = `<label style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#FEF3C7,#FDE68A);border:2px solid var(--teal);border-radius:14px;padding:12px 14px;cursor:pointer">
-      <span style="font-size:26px">🎁</span><span style="flex:1"><b>${L.every}-о измиване — подарък!</b><div class="muted" style="color:#78350F">До ${eur(L.maxValue)} безплатно. Допълнителните услуги се доплащат.</div></span>
+      <span style="font-size:26px">🎁</span><span style="flex:1"><b>${L.every}-о измиване — подарък!</b><div class="muted" style="color:#78350F">${S.prices.some(p => p.gift) ? 'Основното измиване е безплатно' + (giftNow() ? ' (−' + eur(giftNow()) + ')' : ' — избери го от услугите') : 'До ' + eur(L.maxValue) + ' безплатно'}. Допълнителните услуги се доплащат.</div></span>
       <input type="checkbox" class="sw" id="useGift" ${F.useGift ? 'checked' : ''} aria-label="Приложи подаръка"></label>`;
     $('#useGift').onchange = e => { F.useGift = e.target.checked; upd(); };
   } else {
@@ -1696,7 +1700,7 @@ async function tabSet() {
   $('#app').innerHTML = `<div class="sec-t">Ценоразпис</div><div class="card"><p class="muted" style="margin:0 0 6px">Подредбата тук е подредбата на плочките в касата. Сложете най-честите услуги най-горе.</p>` +
     pr.map((p, i) => `<div class="row"><button data-pe="${esc(p.id)}" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;cursor:pointer;text-align:left;padding:0">
         <span class="ico" style="--c:${p.active ? COLORS[pr.filter(x => x.active).indexOf(p) % COLORS.length] : '#9CA3AF'}">${ic(svcIcon(p.name), 18)}</span>
-        <span style="min-width:0"><b>${esc(p.name)}</b>${p.active ? '' : ' <span class="badge gray">спряна</span>'}<div class="tnum" style="font-weight:800">${eur(p.price)}</div></span></button>
+        <span style="min-width:0"><b>${esc(p.name)}</b>${p.gift ? ' <span class="badge warn">⭐ основно</span>' : ''}${p.active ? '' : ' <span class="badge gray">спряна</span>'}<div class="tnum" style="font-weight:800">${eur(p.price)}</div></span></button>
       <span style="display:flex;gap:4px;flex:none"><button class="btn sm sec" data-mv="up" data-id="${esc(p.id)}" aria-label="Нагоре" ${i === 0 ? 'disabled' : ''}>▲</button><button class="btn sm sec" data-mv="down" data-id="${esc(p.id)}" aria-label="Надолу" ${i === pr.length - 1 ? 'disabled' : ''}>▼</button></span></div>`).join('') +
     `<button class="btn teal" id="pNew">${ic('plus', 18)} Нова услуга</button></div>
     <div class="sec-t">Екип</div><div class="card">` + us.slice().sort((a, b) => order[a.role] - order[b.role]).map(u => `<button class="row" data-ue="${esc(u.id)}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left">
@@ -1707,7 +1711,8 @@ async function tabSet() {
     <div class="sec-t">Карта за лоялност</div><div class="card">
       <label style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>Включена</b><div class="muted">Броят се посещенията по номер на колата. Фирмените коли не участват.</div></span><input type="checkbox" class="sw" id="lOn" ${j.loyalty.on ? 'checked' : ''}></label>
       <label class="l" for="lEv">Всяко кое измиване е подарък</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lEv" inputmode="numeric" value="${j.loyalty.every}" style="width:110px"><span class="muted">-о (напр. 10 = всяко 10-о е безплатно)</span></div>
-      <label class="l" for="lMax">Подаръкът е до стойност</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lMax" inputmode="decimal" value="${j.loyalty.maxValue}" style="width:110px"><b>€</b><span class="muted">над нея клиентът доплаща</span></div>
+      ${pr.some(p => p.gift) ? `<div class="muted" style="margin-top:12px">🎁 Подаръкът е <b>основното измиване</b> според колата: ${pr.filter(p => p.gift && p.active).map(p => esc(p.name) + ' ' + eur(p.price)).join(' · ')}. Отбелязва се с ⭐ в ценоразписа.</div>` : `<div class="muted" style="margin-top:12px">Отбележи с ⭐ в ценоразписа основните измивания (кола, джип, бус) — тогава подаръкът е точно тяхната цена.</div>`}
+      <label class="l" for="lMax">${pr.some(p => p.gift) ? 'Резервна граница (ползва се само ако няма услуги със ⭐)' : 'Подаръкът е до стойност'}</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lMax" inputmode="decimal" value="${j.loyalty.maxValue}" style="width:110px"><b>€</b><span class="muted">над нея клиентът доплаща</span></div>
       <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Миячът получава заплата и за подаръка</b><div class="muted">Смята се по нормалната цена, за да не губи миячът.</div></span><input type="checkbox" class="sw" id="lPay" ${j.loyalty.payWasher ? 'checked' : ''}></label>
       <button class="btn green" id="lSave">Запази картата</button></div>
     <div class="sec-t">Талон</div><div class="card">
@@ -1863,19 +1868,20 @@ function priceForm(p) {
     <label class="l" for="pN">Име на услугата</label><input class="f" id="pN" autocomplete="off" value="${esc(p ? p.name : '')}" placeholder="напр. Комплексно почистване">
     <label class="l" for="pP">Цена за нормален клиент</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="pP" inputmode="decimal" value="${p ? p.price : ''}" placeholder="0.00"><b>€</b></div>
     ${p ? `<label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Активна</b><div class="muted">Спряната услуга не се показва в касата. Старите талони остават.</div></span><input type="checkbox" class="sw" id="pA" ${p.active ? 'checked' : ''}></label>` : ''}
+    <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>⭐ Основно измиване</b><div class="muted">Безплатно е с картата за лоялност (напр. кола, джип, бус). Допълнителните услуги се доплащат.</div></span><input type="checkbox" class="sw" id="pG" ${p && p.gift ? 'checked' : ''}></label>
     <p class="muted" style="margin:10px 0 0">Новата цена важи за следващите талони. Издадените талони не се променят. Фирмените цени се задават отделно във „Фирми“.</p>
     <div style="display:flex;gap:8px"><button class="btn sec" id="pNo">Отказ</button><button class="btn green" id="pOk">Запази</button></div></div>`;
   document.body.appendChild(o);
   $('#pNo').onclick = () => o.remove();
   $('#pOk').onclick = () => {
-    const name = $('#pN').value.trim(), price = Number(String($('#pP').value).replace(',', '.')), active = $('#pA') ? $('#pA').checked : true;
+    const name = $('#pN').value.trim(), price = Number(String($('#pP').value).replace(',', '.')), active = $('#pA') ? $('#pA').checked : true, gift = $('#pG').checked;
     if (!name) return toast('Въведи име на услугата', false);
     if (!(price > 0)) return toast('Въведи цена по-голяма от 0', false);
     if ((S.priceList || []).some(x => x.id !== (p && p.id) && x.name.toLowerCase() === name.toLowerCase())) return toast('Вече има услуга с това име', false);
     o.remove();
-    priceWrite('savePrice', { id: p ? p.id : '', name, price, active }, list => {
+    priceWrite('savePrice', { id: p ? p.id : '', name, price, active, gift }, list => {
       const e = p && list.find(x => x.id === p.id);
-      if (e) Object.assign(e, { name, price, active }); else list.push({ id: 'tmp' + Date.now(), name, price, active: true });
+      if (e) Object.assign(e, { name, price, active, gift }); else list.push({ id: 'tmp' + Date.now(), name, price, active: true, gift });
     }, 'Ценоразписът е обновен');
   };
 }
