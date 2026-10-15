@@ -15,7 +15,9 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:Onest,-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;font-size:15px;-webkit-text-size-adjust:100%}
 body{overflow-x:hidden}
-button{font:inherit;color:inherit}
+button{font:inherit;color:inherit;transition:transform .08s,filter .08s}
+button:not(:disabled):active{transform:scale(.97);filter:brightness(.88)}
+button.busy-wait{filter:brightness(.85);cursor:progress}
 input{font:inherit;color:var(--text)}
 .tnum{font-variant-numeric:tabular-nums;white-space:nowrap}
 [hidden]{display:none!important}
@@ -408,6 +410,33 @@ if (navigator.usb) {
   navigator.usb.addEventListener('disconnect', e => { if (e.device === PRN.dev) { PRN.dev = null; PRN.paint(); } });
   PRN.auto();
 }
+
+/* PRESS_WRAP: всеки бутон, чието действие отнема време, показва „⏳ …“ и не приема второ натискане */
+(() => {
+  const d = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'onclick');
+  if (!d || !d.set) return;
+  Object.defineProperty(HTMLButtonElement.prototype, 'onclick', {
+    configurable: true, get() { return d.get.call(this); },
+    set(fn) {
+      if (typeof fn !== 'function') return d.set.call(this, fn);
+      const b = this;
+      d.set.call(this, function (ev) {
+        if (b.dataset.busy) { ev.preventDefault(); return; }
+        const r = fn.call(this, ev);
+        if (!r || typeof r.then !== 'function') return r;
+        b.dataset.busy = 1; const h = b.innerHTML, w = b.offsetWidth;
+        const t = setTimeout(() => {   // бързите действия минават без надпис
+          if (!b.isConnected || b.disabled || /⏳/.test(b.textContent)) return;
+          b.style.minWidth = w + 'px'; b.classList.add('busy-wait'); b.innerHTML = '⏳ ' + (b.textContent.trim().length > 18 ? 'Изчакай…' : b.textContent.trim());
+        }, 250);
+        const done = () => { clearTimeout(t); delete b.dataset.busy; if (b.classList.contains('busy-wait')) { b.classList.remove('busy-wait'); b.innerHTML = h; b.style.minWidth = ''; } };
+        r.then(done, done);
+        return r;
+      });
+    }
+  });
+  document.addEventListener('touchstart', () => {}, { passive: true });   // за да работи „потъването“ и на iPhone
+})();
 
 /* ---------- каркас ---------- */
 function shell(sub, tabs) {
