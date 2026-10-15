@@ -119,6 +119,11 @@ var HELIOS = (function () {
         taken: db.takes.filter(function (t) { return t.env === e.id; }).map(function (t) { return { date: t.date, time: t.time, amount: t.amount, note: t.note, by: t.by }; }),
         received: e.receivedAt ? { by: e.receivedBy, amount: e.receivedAmount, at: e.receivedAt } : null });
     };
+    // номер на смяната = денят от месеца (втора смяна в същия ден: „15/2“)
+    function shiftLabel(s) {
+      var idx = db.shifts.filter(function (x) { return x.date === s.date && x.no <= s.no; }).length;
+      return String(Number(String(s.date).slice(8, 10))) + (idx > 1 ? '/' + idx : '');
+    }
     function shiftCalc(s) {
       var tal = db.kasa.filter(function (k) { return inShift(s, k); }), act = tal.filter(function (k) { return !k.void; });
       var pays = db.payouts.filter(function (x) { return inShift(s, x); }), takes = envTakes().filter(function (x) { return inShift(s, x); });
@@ -127,8 +132,9 @@ var HELIOS = (function () {
       var unpaid = db.kasa.filter(function (k) { return !k.void && !k.pay; });
       var byW = {}, isC = {}; pays.forEach(function (x) { byW[x.washer] = (byW[x.washer] || 0) + x.amount; if (x.kind === 'cashier') isC[x.washer] = 1; });
       var byC = {}; act.forEach(function (k) { byC[k.cashier] = (byC[k.cashier] || 0) + 1; });
+      var exp = r2(s.openCash + cash + sum(takes, function (t) { return t.amount; }) - sum(pays, function (x) { return x.amount; }));
       return Object.assign({}, s, {
-        talons: act.length, voided: tal.length - act.length, revenue: r2(sum(act, function (k) { return k.price; })), cash: r2(cash),
+        label: shiftLabel(s), talons: act.length, voided: tal.length - act.length, revenue: r2(sum(act, function (k) { return k.price; })), cash: r2(cash),
         card: r2(sum(paidIn.filter(function (k) { return k.pay === 'card'; }), function (k) { return k.price; })),
         firm: r2(sum(act.filter(function (k) { return k.pay === 'firm'; }), function (k) { return k.price; })),
         unpaidN: unpaid.length, unpaidSum: r2(sum(unpaid, function (k) { return k.price; })),
@@ -136,7 +142,7 @@ var HELIOS = (function () {
         tillByWasher: Object.keys(byW).map(function (n) { return { name: n, amount: r2(byW[n]), cashier: !!isC[n] }; }), byCashier: byC,
         takes: takes.map(function (t) { return { env: t.envLabel, amount: t.amount, note: t.note, by: t.by, time: t.time }; }),
         taken: r2(sum(takes, function (t) { return t.amount; })),
-        expected: r2(s.openCash + cash + sum(takes, function (t) { return t.amount; }) - sum(pays, function (x) { return x.amount; }))
+        expected: s.closeT && s.expected != null ? s.expected : exp   // приключена смяна: числата от момента на приключването
       });
     }
     var openShift = function () { return db.shifts.filter(function (s) { return !s.closeT; })[0]; };
@@ -397,7 +403,7 @@ var HELIOS = (function () {
           db.shifts.push({ id: p.cid || uid('h'), no: no, date: T, openSeq: Number(db.meta.seq) || 0, openT: now(), openBy: u.name, openCash: cash,
             openDiff: lc2 ? r2(cash - (lc2.leftFloat || 0)) : 0, prevBy: lc2 ? lc2.closeBy : '', mode: null, closeSeq: null, closeT: null, closeBy: null,
             counted: null, expected: null, diff: null, leftFloat: null, envelope: null });
-          return { no: no };
+          return { no: no, label: shiftLabel(db.shifts[db.shifts.length - 1]) };
         }
         case 'closeShift': {
           need(u, ['cashier', 'admin']);
@@ -409,7 +415,7 @@ var HELIOS = (function () {
           var cc = shiftCalc(s1);
           Object.assign(s1, { mode: mode, closeSeq: Number(db.meta.seq) || 0, closeT: now(), closeBy: u.name, counted: counted, expected: cc.expected,
             diff: r2(counted - cc.expected), leftFloat: left, envelope: r2(counted - left) });
-          if (mode === 'day' && s1.envelope > 0) db.envs.push({ id: (p.cid ? p.cid + 'e' : uid('e')), label: 'Плик смяна № ' + s1.no, date: T, amount: s1.envelope, byOwner: false, receivedBy: null, receivedAmount: null, receivedAt: null });
+          if (mode === 'day' && s1.envelope > 0) db.envs.push({ id: (p.cid ? p.cid + 'e' : uid('e')), label: 'Плик смяна № ' + shiftLabel(s1), date: T, amount: s1.envelope, byOwner: false, receivedBy: null, receivedAmount: null, receivedAt: null });
           return { shift: shiftCalc(s1) };
         }
         case 'envTake': {

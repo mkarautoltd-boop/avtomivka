@@ -837,7 +837,7 @@ function openShiftScreen() {
     $('#oscDiff').innerHTML = Math.abs(d) < 0.005 ? '<span class="badge ok">✓ Съвпада с оставеното</span>' : `<span class="badge bad">Разлика ${d > 0 ? '+' : ''}${eur(d)} спрямо оставеното — ще се види при собственика</span>`; };
   $('#osc').oninput = diff; diff();
   $('#osGo').onclick = async () => {
-    try { const r = await api('openShift', { cash: $('#osc').value }); toast('Смяна № ' + r.no + ' е отворена'); await refreshCashierKpis(); go('new'); }
+    try { const r = await api('openShift', { cash: $('#osc').value }); toast('Смяна № ' + (r.label || r.no) + ' е отворена'); await refreshCashierKpis(); go('new'); }
     catch (e) { toast(e.message, false); }
   };
 }
@@ -875,7 +875,7 @@ async function closeShiftStart(mode) {
   S.owedNow = owed;
   $('#app').classList.remove('has-side'); $('#bar').innerHTML = '';
   $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto">
-    <div class="card"><h2 style="font-size:20px">${mode === 'handover' ? 'Предаване на смяна' : 'Приключване на деня'} · смяна № ${st.shift.no}</h2>
+    <div class="card"><h2 style="font-size:20px">${mode === 'handover' ? 'Предаване на смяна' : 'Приключване на деня'} · смяна № ${st.shift.label || st.shift.no}</h2>
       <div class="muted">${mode === 'handover' ? 'Парите остават в касата за следващия касиер. Излиза междинен отчет.' : 'Парите отиват в плик заедно с отчета.'}</div>
       ${mode === 'day' && S.day && S.day.unpaid && S.day.unpaid.length ? `<div class="card alert" style="margin:12px 0 0;box-shadow:none;background:#FEF2F2"><b>${S.day.unpaid.length} ${S.day.unpaid.length === 1 ? 'кола не е платена' : 'коли не са платени'} (${eur(S.day.unpaid.reduce((a, k) => a + k.price, 0))})</b>
         <div class="muted">Вземи парите преди да приключиш. Ако останат, ще се виждат и утре в „Плащане“.</div></div>` : ''}
@@ -917,11 +917,11 @@ function closeShiftStep2(st, counted, mode) {
       const r = await api('closeShift', { mode, counted, leftFloat: hand ? counted : $('#left').value });
       const s = r.shift; s.owedList = S.owedNow || []; $('#printArea').innerHTML = shiftSlipHtml(s); if (AUTO_PRINT) setTimeout(PRN.print, 150);
       if (hand) {
-        S.loginMsg = `Смяна № ${s.no} е предадена от ${S.user.name}. В касата: ${eur(s.counted)}. Следващият касиер да влезе.`;
+        S.loginMsg = `Смяна № ${s.label || s.no} е предадена от ${S.user.name}. В касата: ${eur(s.counted)}. Следващият касиер да влезе.`;
         S.lastSlip = s; setTimeout(logout, AUTO_PRINT ? 1500 : 200); return;
       }
       await refreshCashierKpis();
-      $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto"><div class="card" style="text-align:center"><div style="font-size:40px">✓</div><h2 style="font-size:20px">Денят е приключен · смяна № ${s.no}</h2>
+      $('#app').innerHTML = `<div style="max-width:620px;margin:0 auto"><div class="card" style="text-align:center"><div style="font-size:40px">✓</div><h2 style="font-size:20px">Денят е приключен · смяна № ${s.label || s.no}</h2>
         <p class="muted">Сложи <b>${eur(s.envelope)}</b> и отчета в плика.${AUTO_PRINT ? '' : ' (В демото отчетът не се печата.)'}</p></div>
         <div class="card">${shiftSlipHtml(s)}</div><button class="btn sec" id="cOut">Изход</button></div>`;
       $('#cOut').onclick = logout;
@@ -931,7 +931,7 @@ function closeShiftStep2(st, counted, mode) {
 function shiftSlipHtml(s) {
   const r = (a, b, bold) => `<div class="trow"${bold ? ' style="font-weight:800"' : ''}><span>${a}</span><span>${b}</span></div>`;
   const e = n => (Math.round(n * 100) / 100).toFixed(2), hand = s.mode === 'handover';
-  return `<div class="talon"><div class="tc"><b>${esc(S.talonName)}</b></div><div class="tc tbig" style="font-size:17px">${hand ? 'МЕЖДИНЕН ОТЧЕТ' : 'ОТЧЕТ ЗА ДЕНЯ'}</div><div class="tc">Смяна № ${s.no}</div>
+  return `<div class="talon"><div class="tc"><b>${esc(S.talonName)}</b></div><div class="tc tbig" style="font-size:17px">${hand ? 'МЕЖДИНЕН ОТЧЕТ' : 'ОТЧЕТ ЗА ДЕНЯ'}</div><div class="tc">Смяна № ${s.label || s.no}</div>
     <div class="tc">${esc(bgDate(s.date))} · ${esc(s.openT)} – ${esc(s.closeT || '')}</div>
     <div class="tc">Касиер: ${esc([...new Set([s.openBy].concat(Object.keys(s.byCashier || {})).concat([s.closeBy]).filter(Boolean))].join(', '))}</div><hr>
     ${r('Талони', s.talons + ' бр.')}${s.voided ? r('Анулирани', s.voided + ' бр.') : ''}${r('Оборот общо', e(s.revenue))}${r('&nbsp;в брой', e(s.cash))}${r('&nbsp;карта', e(s.card))}${r('&nbsp;фирми', e(s.firm))}${s.unpaidN ? r('Чакат плащане', s.unpaidN + ' бр. · ' + e(s.unpaidSum)) : ''}<hr>
@@ -1242,7 +1242,7 @@ async function tabToday() {
   const j = S.day; if (!j) return;
   const act = j.items.filter(k => !k.void);
   const sh = j.shift;
-  $('#app').innerHTML = (sh ? `<div class="card"><b style="font-size:17px">Смяна № ${sh.no}</b><div class="muted">отворена ${esc(sh.openT)} от ${esc(sh.openBy)} · начална сума ${eur(sh.openCash)}</div>
+  $('#app').innerHTML = (sh ? `<div class="card"><b style="font-size:17px">Смяна № ${sh.label || sh.no}</b><div class="muted">отворена ${esc(sh.openT)} от ${esc(sh.openBy)} · начална сума ${eur(sh.openCash)}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
         <button class="btn sec" id="handSh" style="margin:0">Предай смяната<div class="muted" style="font-weight:500">междинен отчет</div></button>
         <button class="btn teal" id="closeSh" style="margin:0">Приключи деня<div style="font-weight:500;font-size:13px">отчет + плик</div></button></div>
@@ -1344,7 +1344,7 @@ async function tabRep() {
   let shf = (await shP) || { shifts: [], envelopes: [], envTotal: 0 };
   if (S.tab !== 'rep') return;   // потребителят вече е в друг раздел
   h += `<div class="sec-t">Смени</div>` + (shf.shifts.length ? shf.shifts.map(s => `<div class="card ${s.closeT && Math.abs(s.diff) >= 0.005 ? 'alert' : ''}">
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Смяна № ${s.no} · ${esc(s.openT)}–${esc(s.closeT || 'отворена')}</b>
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Смяна № ${s.label || s.no} · ${esc(s.openT)}–${esc(s.closeT || 'отворена')}</b>
         ${!s.closeT ? '<span class="badge blue">отворена</span>' : s.mode === 'handover' ? '<span class="badge gray">предадена</span>' : '<span class="badge ok">ден приключен</span>'}</div>
       <div class="muted">${esc(s.openBy)}${s.closeBy && s.closeBy !== s.openBy ? ' → ' + esc(s.closeBy) : ''} · ${s.talons} талона · в брой ${eur(s.cash)}${s.taken ? ' · взето от пликове ' + eur(s.taken) : ''}${s.openDiff ? ` · <span style="color:var(--red)">при приемане разлика ${eur(s.openDiff)}</span>` : ''}</div>
       ${s.closeT ? `<div style="background:var(--soft);border-radius:12px;padding:2px 12px;margin-top:10px">
