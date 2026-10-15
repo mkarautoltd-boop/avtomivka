@@ -686,11 +686,13 @@ async function doLogin(pass, login, remember) {
     if (remember) { store('mw_pin', pass); store('mw_uid', login); }
     route();
   } catch (e) {
-    S.pin = ''; S.user = null; store('mw_pin', null); store('mw_uid', null);
+    S.pin = ''; S.user = null;
+    if (AUTH_ERR.test(e.message)) { store('mw_pin', null); store('mw_uid', null); }   // запомненото се трие само при грешна парола
     if (!$('#lf')) showLogin(); else { $('#lp').value = ''; $('#lp').focus(); }
     toast(e.message, false);
   } finally { busy(false); if ($('#lgo')) $('#lgo').disabled = false; }
 }
+const AUTH_ERR = /Грешно потребителско име или парола|спрян/i;
 async function fastStart(login, pass, remember) {
   const h = credHash(login, pass), c = creds()[login];
   let a = null; try { a = JSON.parse(load('hl_aboot') || 'null'); } catch (e) {}
@@ -709,13 +711,13 @@ async function fastStart(login, pass, remember) {
 async function bgLogin(login, pass, h, role) {
   const same = () => S.user && S.uid === login && S.pin === pass;
   const fresh = j => { if (!same() || !j || !j.user) return; Object.assign(S, { user: Object.assign(S.user, j.user), prices: j.prices || S.prices, washers: j.washers || S.washers, firms: j.firms || S.firms, talonName: j.talonName || S.talonName, address: j.address || '', clientTalon: !!j.clientTalon }); };
-  const bad = msg => { if (!same()) return; logout(); toast(msg || 'Влез отново', false); };
+  const bad = msg => { if (!same() || !AUTH_ERR.test(msg || '')) return; logout(); toast(msg, false); };
   if (role === 'cashier') {
     try {
       const j = await cashierWrite('login', {});
       if (j && j.user) { const all = creds(); all[login] = { h, boot: j }; store('hl_creds', JSON.stringify(all)); fresh(j); }
       if (same() && !NET.off) { if (NET.queue.length) await flushQueue(); else { await syncNow(false); } refreshCashierKpis(); }
-    } catch (e) { if (e instanceof AppError || /парола|спрян|права|потребител/i.test(e.message)) bad(e.message); }
+    } catch (e) { bad(e.message); }
     return;
   }
   try {
@@ -723,7 +725,7 @@ async function bgLogin(login, pass, h, role) {
     if (!j.ok) return bad(j.error);
     if (load('hl_aboot')) store('hl_aboot', JSON.stringify({ u: login, h, boot: j }));
     fresh(j);
-  } catch (e) { if (e instanceof AppError) bad(e.message); }
+  } catch (e) { bad(e.message); }
 }
 function logout() { store('hl_aboot', null); store('hl_rc', null); store('mw_pin', null); store('mw_uid', null); S.pin = ''; S.uid = ''; S.user = null; showLogin(); }
 function route() {
