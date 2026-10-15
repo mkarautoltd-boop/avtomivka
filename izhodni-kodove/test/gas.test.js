@@ -11,10 +11,10 @@ Sheet.prototype = {
     const rg = {
       getValues() { const o = []; for (let i = 0; i < nr; i++) { const row = []; for (let j = 0; j < nc; j++) { const v = (sh.data[r - 1 + i] || [])[c - 1 + j]; row.push(v === undefined ? '' : v); } o.push(row); } return o; },
       setValues(v) { assert.equal(v.length, nr); for (let i = 0; i < nr; i++) { assert.equal(v[i].length, nc); sh.data[r - 1 + i] = sh.data[r - 1 + i] || []; for (let j = 0; j < nc; j++) sh.data[r - 1 + i][c - 1 + j] = v[i][j]; } return rg; },
-      setValue(v) { return rg.setValues([[v]]); }, setNumberFormats() { return rg; }, setNumberFormat() { return rg; }, setFontWeight() { return rg; }, setBackground() { return rg; } };
+      setValue(v) { return rg.setValues([[v]]); }, clearContent() { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) if (sh.data[r - 1 + i]) sh.data[r - 1 + i][c - 1 + j] = ''; return rg; }, setNumberFormats() { return rg; }, setNumberFormat() { return rg; }, setFontWeight() { return rg; }, setBackground() { return rg; } };
     return rg; } };
 const SS = { sheets: [new Sheet('Sheet1')], getSheetByName(n) { return this.sheets.find(s => s.name === n) || null; }, insertSheet(n) { const s = new Sheet(n); this.sheets.push(s); return s; },
-  getSheets() { return this.sheets; }, deleteSheet(s) { this.sheets = this.sheets.filter(x => x !== s); } };
+  getSheets() { return this.sheets; }, getName() { return 'HELIOS-kasa'; }, copy(n) { this.copied = n; return { getName: () => n }; }, deleteSheet(s) { this.sheets = this.sheets.filter(x => x !== s); } };
 let clock = new Date('2026-09-30T08:00:00');
 const ctx = {
   SpreadsheetApp: { getActiveSpreadsheet: () => SS },
@@ -79,4 +79,17 @@ r = post(Object.assign({ action: 'myDay' }, M)); console.log('handover list', r.
 r = post(Object.assign({ action: 'firmMonth', month: '2026-10' }, B)); console.log('firm items', JSON.stringify(r.firms[0].items.map(i => [i.plate, i.driver, (i.sig || '').slice(0, 15)])), 'unsigned', r.firms[0].unsigned);
 console.log('kasa header now', SS.getSheetByName('Талони').data[0].slice(20).join(','));
 r = post(Object.assign({ action: 'sync', since: 0 }, M)); console.log('cashier sig', r.delta.tables.kasa.filter(k => k.sig).map(k => k.sig).join(','));
+// ЗАНУЛЯВАНЕ
+const before = post(Object.assign({ action: 'sync', since: 0 }, M)).delta;
+ctx.resetData();
+const after = post(Object.assign({ action: 'sync', since: 0 }, M)).delta;
+const cnt = d => Object.keys(d.tables).map(t => t + ':' + d.tables[t].length).join(' ');
+console.log('before:', cnt(before)); console.log('after: ', cnt(after), '| epoch', after.meta.epoch, '| backup', SS.copied);
+assert(after.meta.epoch && !after.tables.kasa && !after.tables.shifts && after.tables.users.length === before.tables.users.length && after.tables.prices.length === before.tables.prices.length && after.tables.firms.length === before.tables.firms.length);
+r = post(Object.assign({ action: 'batch', items: [{ action: 'addKasa', cid: 'old1', by: 'maria', ep: '', plate: 'СА 9999 СС', services: ['Бус'], washer: 'Иван' }] }, M));
+assert(r.results[0].dup, 'old queued item must be skipped');
+r = post(Object.assign({ action: 'openShift', cash: 0, cid: 'sh-new' }, M)); assert(r.ok, r.error);
+r = post(Object.assign({ action: 'addKasa', plate: 'СА 1234 ВХ', services: ['Бус'], washer: 'Иван', cid: 'new1' }, M)); assert(r.ok, r.error);
+console.log('first talon after reset:', r.talon, '| kasa rows', SS.getSheetByName('Талони').getLastRow() - 1);
+assert.equal(r.talon, '1');
 console.log('GAS OK');

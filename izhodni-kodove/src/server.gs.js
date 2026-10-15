@@ -150,6 +150,26 @@ function setup() {
   if (def && def.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(def);
   Logger.log('Готово. Вход: admin / ' + FIRST_ADMIN_PASSWORD);
 }
+// ЗАНУЛЯВАНЕ: трие талоните, плащанията, смените, пликовете, заплатите и влизанията.
+// Хората, цените, фирмите и настройките остават. Преди това прави резервно копие на цялата таблица.
+function resetData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet(), T = HELIOS.TABLES, keep = ['users', 'prices', 'firms'];
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const copy = ss.copy(ss.getName() + ' — резервно копие ' + ENV.today() + ' ' + ENV.now());
+    Object.keys(T).forEach(t => {
+      if (keep.indexOf(t) >= 0) return;
+      const sh = ss.getSheetByName(T[t].sheet);
+      if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(sh.getLastColumn(), T[t].cols.length)).clearContent();
+    });
+    const kv = ss.getSheetByName('Настройки'), rows = kv.getLastRow() > 1 ? kv.getRange(2, 1, kv.getLastRow() - 1, 2).getValues() : [], map = {};
+    rows.forEach((r, i) => { map[r[0]] = i + 2; });
+    let meta = {}; try { meta = JSON.parse((rows.filter(r => r[0] === 'meta')[0] || [])[1] || '{}'); } catch (x) {}
+    meta.seq = 0; meta.v = (Number(meta.v) || 0) + 1; meta.epoch = ENV.uid();   // касите разбират, че е занулено, и теглят наново
+    setKv_(kv, map, 'meta', JSON.stringify(meta));
+    Logger.log('Готово — занулено. Резервно копие: „' + copy.getName() + '“ в Google Drive.');
+  } finally { lock.releaseLock(); }
+}
 // ако забравиш паролата на собственика: пусни тази функция — паролата става FIRST_ADMIN_PASSWORD
 function resetAdminPassword() {
   const store = SheetStore_(), db = store.load(); HELIOS.snapshot(db); const snap = store.snapshot();
