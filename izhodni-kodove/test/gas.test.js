@@ -92,4 +92,9 @@ r = post(Object.assign({ action: 'openShift', cash: 0, cid: 'sh-new' }, M)); ass
 r = post(Object.assign({ action: 'addKasa', plate: 'СА 1234 ВХ', services: ['Бус'], washer: 'Иван', cid: 'new1' }, M)); assert(r.ok, r.error);
 console.log('first talon after reset:', r.talon, '| kasa rows', SS.getSheetByName('Талони').getLastRow() - 1);
 assert.equal(r.talon, '1');
+// Разходи auto: листът липсва в стара таблица → създава се сам
+SS.sheets = SS.sheets.filter(x => x.name !== 'Разходи');
+r = post(Object.assign({ action: 'addExpense', amount: 500, cat: 'Наем', method: 'bank', cid: 'x1' }, B)); assert(r.ok, r.error);
+r = post(Object.assign({ action: 'monthReport', month: '2026-10' }, B)); assert(r.ok, r.error);
+console.log('Разходи auto: sheet', !!SS.getSheetByName('Разходи'), 'rows', SS.getSheetByName('Разходи').getLastRow() - 1, '| money', JSON.stringify(r.money));
 console.log('GAS OK');

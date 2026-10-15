@@ -59,8 +59,12 @@ function SheetStore_() {
         Object.defineProperty(db, t, { enumerable: true, configurable: true,
           get() {
             if (rows === null) {
-              const def = T[t], sh = ss.getSheetByName(def.sheet);
-              if (!sh) throw new Error('Липсва лист „' + def.sheet + '“ — пусни функцията setup');
+              const def = T[t]; let sh = ss.getSheetByName(def.sheet);
+              if (!sh) {   // нов лист след обновяване — създава се сам
+                sh = ss.insertSheet(def.sheet);
+                sh.getRange(1, 1, 1, def.cols.length).setValues([def.cols.map(c => c[0])]).setFontWeight('bold').setBackground('#F2C230');
+                sh.setFrozenRows(1);
+              }
               sheets[t] = sh;
               if (sh.getLastColumn() < def.cols.length) {   // нови колони след обновяване — дописваме заглавията
                 const fromC = sh.getLastColumn() + 1, names = def.cols.slice(fromC - 1).map(c => [c[0]]);

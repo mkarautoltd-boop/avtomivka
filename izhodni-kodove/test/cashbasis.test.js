@@ -1,0 +1,38 @@
+global.HELIOS = require('../src/engine.js');
+const seed = require('../src/seed.js'), H = HELIOS, assert = require('assert');
+let T = '2026-10-20'; let n = 0;
+const env = { today: () => T, now: () => '12:00', uid: () => 'z' + (++n) };
+const db = seed(T); const mem = { load: () => db, save: () => {} };
+const call = (l, p, a, d = {}) => H.serve(Object.assign({ action: a, login: l, pass: p }, d), mem, env);
+const admin = db.users.find(u => u.role === 'admin');
+const A = (a, d) => { const r = call('admin', 'helios', a, d); assert(r.ok, a + ': ' + r.error); return r; };
+let r = call('maria', '1111', 'addKasa', { plate: 'СА 2222 ТТ', services: ['Бус'], washer: 'Георги' }); assert.equal(r.pay, 'firm');
+const firm = db.kasa.find(k => k.id === r.id).firm;
+let oct = A('monthReport', { month: '2026-10' }).money;
+console.log('OCT before', JSON.stringify({ rec: oct.received, fw: oct.firmWork, debts: oct.debts }));
+assert(oct.firmWork >= 20); assert(oct.debts.some(d => d.firm === firm && d.month === '2026-10'));
+const debt = oct.debts.find(d => d.firm === firm && d.month === '2026-10').rest;
+T = '2026-11-12';
+A('firmPay', { firm, month: '2026-10', amount: debt, method: 'bank' });
+const oct2 = A('monthReport', { month: '2026-10' }).money, nov = A('monthReport', { month: '2026-11' }).money;
+console.log('OCT after', oct2.received, 'NOV', nov.received, JSON.stringify(nov.firmPays));
+assert.equal(oct2.received, oct.received, 'октомври не се променя');
+assert.equal(nov.firmIn, debt); assert.equal(nov.bank, debt); assert(!oct2.debts.some(d => d.firm === firm && d.month === '2026-10'));
+assert.equal(nov.profit, H.r2(nov.received - nov.wages - nov.expenses));
+console.log('CASHBASIS OK');
+// услуга по договорка
+T = '2026-11-12';
+A('savePrice', { name: 'Много мръсна кола', price: 0, free: true });
+assert(A('pricesAll').prices.find(x => x.name === 'Много мръсна кола').free);
+let bad = call('maria', '1111', 'addKasa', { plate: 'СА 9999 ХХ', services: ['Кола вътре+вън', 'Много мръсна кола'], washer: 'Иван' }); assert(!bad.ok && /Въведи сума/.test(bad.error), bad.error);
+r = call('maria', '1111', 'addKasa', { plate: 'СА 9999 ХХ', services: ['Кола вътре+вън', 'Много мръсна кола'], amounts: { 'Много мръсна кола': '12,5'.replace(',', '.') }, washer: 'Иван' });
+assert(r.ok, r.error); console.log('free items', JSON.stringify(r.items), r.price);
+assert.equal(r.items.find(i => i.name === 'Много мръсна кола').price, 12.5);
+const nov2 = A('monthReport', { month: '2026-11' }).money; assert.equal(nov2.profitWork, H.r2(A('monthReport', { month: '2026-11' }).totals.revenue - nov2.wages - nov2.expenses));
+console.log('FREE OK');
+// касиерът не може да промени цена на нормална услуга
+r = call('maria', '1111', 'addKasa', { plate: 'СА 8888 ХХ', services: ['Кола вътре+вън'], amounts: { 'Кола вътре+вън': 1 }, washer: 'Иван' }); assert(r.ok, r.error); assert.equal(r.price, 18);
+r = call('maria', '1111', 'savePrice', { name: 'Много мръсна кола', price: 5 }); assert(!r.ok);
+console.log('CASHIER LIMIT OK');
+for (const a of ['monthReport', 'addExpense', 'delExpense']) { r = call('maria', '1111', a, { month: '2026-11', amount: 5, cat: 'Ток', id: 'x' }); assert(!r.ok, a); }
+console.log('ADMIN ONLY OK');
