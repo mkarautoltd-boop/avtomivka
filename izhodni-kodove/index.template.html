@@ -1667,20 +1667,11 @@ async function tabMonth() {
   if (S.tab !== 'rep') return;   // потребителят вече е в друг раздел
   const t = j.totals, [yy, mm] = S.repMonth.split('-').map(Number), nd = new Date(yy, mm, 0).getDate();
   setKpis([[t.cars, 'коли за месеца'], [eur(t.revenue), 'оборот'], [j.days.length, 'работни дни']]);
-  if (!j.days.length) { $('#rep').innerHTML = moneyCard(j) + expensesCard(j) + '<div class="empty">Няма талони за този месец.</div>'; bindMoney(j); return; }
+  if (!j.days.length) { $('#rep').innerHTML = monthTiles(j) + expBtn() + moneyCard(j) + expensesCard(j); bindMoney(j); return; }
   const byDay = {}; j.days.forEach(d => byDay[+d.date.slice(8)] = d);
   const max = Math.max(...j.days.map(d => d.revenue), 1), top = Math.ceil(max / 50) * 50;
   const best = j.days.reduce((a, b) => b.revenue > a.revenue ? b : a);
-  let h = moneyCard(j) + `<div class="stats">
-    <div class="stat" style="--c:var(--green)"><b>${eur(t.cash)}</b><span>в брой</span></div>
-    <div class="stat" style="--c:var(--blue)"><b>${eur(t.card)}</b><span>с карта</span></div>
-    <div class="stat" style="--c:var(--amber)"><b>${eur(t.firm)}</b><span>фирми (фактура)</span></div>
-    <div class="stat" style="--c:#7C3AED"><b>${eur(t.washerPay)}</b><span>за миячи (${j.pct}%)</span></div>
-    <div class="stat" style="--c:var(--amber)"><b>${eur(t.paidOut)}</b><span>изплатени заплати</span></div>
-    <div class="stat" style="--c:#B8860B"><b>${eur(t.cashierPay || 0)}</b><span>надник касиери</span></div>
-    <div class="stat" style="--c:var(--teal)"><b>${eur(t.revenue / j.days.length)}</b><span>среден оборот на ден</span></div>
-    ${t.gifts ? `<div class="stat wide" style="--c:#CA8A04"><b>${t.gifts} подаръка · ${eur(t.giftValue)}</b><span>безплатни измивания от картата за лоялност</span></div>` : ''}
-    <div class="stat wide" style="--c:var(--navy)"><b>${eur(t.company)}</b><span>остава за автомивката (преди разходи)</span></div></div>`;
+  let h = monthTiles(j) + expBtn() + moneyCard(j);
   h += `<div class="card"><h2>Оборот по дни</h2><div class="muted" id="cInfo" style="margin:-4px 0 10px;min-height:18px">Най-силен ден: ${bgDate(best.date)} — ${eur(best.revenue)}. Натисни стълб за подробности.</div>
     <div class="chart" role="img" aria-label="Оборот по дни за месеца">
       <div class="chart-grid" style="top:0">${top} €</div><div class="chart-grid" style="top:50%">${top / 2} €</div>
@@ -1707,11 +1698,26 @@ const MONTHS_BG = ['януари', 'февруари', 'март', 'април',
 const monthLabel = m => { const [y, mm] = m.split('-'); return MONTHS_BG[+mm - 1] + ' ' + y; };
 const EXP_CATS = ['Наем', 'Ток', 'Вода', 'Химия и консумативи', 'Ремонт и поддръжка', 'Реклама', 'Данъци и осигуровки', 'Счетоводство', 'Друго'];
 const ML = m => { const [y, mm] = m.split('-'); return MONTHS_BG[+mm - 1].toLowerCase() + ' ' + y; };
+function monthTiles(j) {
+  const t = j.totals, m = j.money;
+  return `<div class="stats">
+    <div class="stat" style="--c:var(--green)"><b>${eur(t.cash)}</b><span>в брой</span></div>
+    <div class="stat" style="--c:var(--blue)"><b>${eur(t.card)}</b><span>с карта</span></div>
+    <div class="stat" style="--c:var(--amber)"><b>${eur(t.firm)}</b><span>фирми (фактура)</span></div>
+    <div class="stat" style="--c:#7C3AED"><b>${eur(t.washerPay)}</b><span>за миячи (${j.pct}%)</span></div>
+    <div class="stat" style="--c:var(--amber)"><b>${eur(t.paidOut)}</b><span>изплатени заплати</span></div>
+    <div class="stat" style="--c:#B8860B"><b>${eur(m.cashiers)}</b><span>надник касиери</span></div>
+    <div class="stat" style="--c:var(--red)"><b>${eur(m.expenses)}</b><span>разходи</span></div>
+    <div class="stat" style="--c:var(--teal)"><b>${eur(j.days.length ? t.revenue / j.days.length : 0)}</b><span>среден оборот на ден</span></div>
+    ${t.gifts ? `<div class="stat wide" style="--c:#CA8A04"><b>${t.gifts} подаръка · ${eur(t.giftValue)}</b><span>безплатни измивания от картата за лоялност</span></div>` : ''}
+    <div class="stat wide" style="--c:var(--navy)"><b style="color:${m.profit >= 0 ? 'inherit' : 'var(--red)'}">${eur(m.profit)}</b><span>печалба за месеца (получени пари − заплати − разходи)</span></div></div>`;
+}
+const expBtn = () => `<button class="btn teal" id="expNew" style="margin:4px 0 14px">${ic('plus', 18)} Добави разход</button>`;
 function moneyCard(j) {
   const m = j.money, row = (a, b, st) => `<div class="row" style="${st || ''}"><span>${a}</span><b class="tnum">${b}</b></div>`;
   const debt = m.debts.reduce((a, d) => a + d.rest, 0);
-  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Пари за ${esc(monthLabel(j.month))}</h2>
-      <span style="display:flex;gap:8px"><button class="btn sm sec" id="expNew" style="margin:0">+ Разход</button><button class="btn sm teal" id="mPdf" style="margin:0">📄 PDF отчет</button></span></div>
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Отчет за ${esc(monthLabel(j.month))}</h2>
+      <button class="btn sm teal" id="mPdf" style="margin:0">📄 PDF отчет</button></div>
     ${row('Брой коли', j.totals.cars)}
     ${row('<b>Оборот</b> (получени пари)', eur(m.received), 'font-size:18px')}
     ${row('&nbsp;&nbsp;в брой', eur(m.cash))}${row('&nbsp;&nbsp;по банка', eur(m.bank))}
@@ -1729,7 +1735,7 @@ function expensesCard(j) {
   return `<div class="sec-t">Разходи · ${esc(monthLabel(j.month))}</div><div class="card">` + (j.expenses.length ? j.expenses.slice().reverse().map(x => `<div class="row">
       <span><b>${esc(x.cat)}</b> <span class="tnum">${eur(x.amount)}</span><div class="muted">${esc(bgDate(x.date))} · ${x.method === 'cash' ? 'в брой' : 'по банка'}${x.note ? ' · ' + esc(x.note) : ''}</div></span>
       <button class="btn sm sec" data-xdel="${esc(x.id)}" style="margin:0" aria-label="Изтрий разхода">Изтрий</button></div>`).join('')
-    : '<div class="muted">Още няма разходи за този месец. Натисни „+ Разход“, за да добавиш наем, ток, вода, химия и др.</div>') + '</div>';
+    : '<div class="muted">Още няма разходи за този месец. Натисни „Добави разход“, за да добавиш наем, ток, вода, химия и др.</div>') + '</div>';
 }
 function bindMoney(j) {
   $('#expNew').onclick = () => expenseForm(j.month);
