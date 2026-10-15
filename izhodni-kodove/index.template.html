@@ -26,7 +26,7 @@ input{font:inherit;color:var(--text)}
 .logo{width:36px;height:36px;border-radius:11px;background:var(--teal);color:var(--gold-ink);display:grid;place-items:center;flex:none}
 .hdr h1{font-size:17px;margin:0;font-weight:700;line-height:1.2}
 .hdr small{display:block;opacity:.65;font-size:12px;font-weight:500}
-.hdr .prn{background:rgba(255,255,255,.1);border:0;border-radius:10px;padding:8px 10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;margin-left:auto}.hdr .prn.on{background:#16A34A}.hdr .prn+.out{margin-left:0}
+.hdr .prn{background:rgba(255,255,255,.1);border:0;border-radius:10px;padding:8px 10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;margin-left:auto}.hdr .prn.on{background:#16A34A}.hdr .prn+.out,.hdr .prn+.prn{margin-left:0}
 .hdr .out{margin-left:auto;background:rgba(255,255,255,.1);border:0;border-radius:10px;padding:8px 12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
 .net{max-width:560px;margin:12px auto 0;border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px}
 .net.off{background:#7F1D1D;color:#FECACA}.net.sync{background:#78350F;color:#FDE68A}.net.done{background:#14532D;color:#BBF7D0}
@@ -412,10 +412,15 @@ if (navigator.usb) {
 /* ---------- каркас ---------- */
 function shell(sub, tabs) {
   $('#root').innerHTML = `<div class="hdr"><div class="hdr-top">${LOGO}<div><div class="wm">HELIOS</div><h1>${esc(S.user.name)}</h1><small>${esc(sub)}</small></div>
-      ${PRN.btn()}<button class="out" id="out">Изход</button></div><div id="net"></div><div id="kpis"></div></div>
+      <button class="prn" id="rfr" title="Обнови" aria-label="Обнови">⟳ Обнови</button>${PRN.btn()}<button class="out" id="out">Изход</button></div><div id="net"></div><div id="kpis"></div></div>
     <div class="wrap" id="app"></div><div id="bar"></div>
     ${tabs ? `<nav class="tabs" aria-label="Раздели"><div class="tabs-in">${tabs.map(t => `<button data-tab="${t[0]}">${ic(t[2])}${t[1]}</button>`).join('')}</div></nav>` : ''}`;
   $('#out').onclick = logout; netBar(); PRN.paint();
+  $('#rfr').onclick = async () => {   // изпраща чакащото, после презарежда с най-новата версия (без изход)
+    const b = $('#rfr'); b.disabled = true; b.textContent = '⟳ Обновява…';
+    try { if (cashierMode() && NET.queue.length && !NET.off) await flushQueue(); } catch (e) {}
+    store('hl_rc', null); location.reload();
+  };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => go(b.dataset.tab));
 }
 // връзка с интернет: касата работи и без нея — записите чакат в опашка и се изпращат сами
