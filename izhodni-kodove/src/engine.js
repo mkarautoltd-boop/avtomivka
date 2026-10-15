@@ -29,7 +29,7 @@ var HELIOS = (function () {
   // действия, които касата може да направи и без интернет
   var OFFLINE_WRITE = ['addKasa', 'payKasa', 'handover', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login'];
   var LOCAL_READ = ['myDay', 'payroll', 'shiftState', 'loyalty'];
-  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa', 'addExpense', 'delExpense']);
+  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa', 'addExpense', 'delExpense', 'bindCashDev', 'unbindCashDev']);
 
   var r2 = function (x) { return Math.round((+x || 0) * 100) / 100; };
   var num = function (v) { return r2(Number(String(v == null ? '' : v).replace(',', '.')) || 0); };
@@ -241,6 +241,17 @@ var HELIOS = (function () {
           return {};
         }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
+        case 'bindCashDev': {   // „Този компютър е касата“ — натиска се на самия компютър
+          need(u, ['admin']);
+          var dk = String(p.dev || ''); if (dk.length < 16) throw new Error('Този браузър няма ключ — презареди страницата');
+          var dh = devHash(dk), list0 = (S.cashDevs || []).filter(function (x) { return x.h !== dh; });
+          list0.push({ h: dh, label: String(p.label || 'Каса').trim().slice(0, 40) || 'Каса', date: T, by: u.name });
+          S.cashDevs = list0; return { cashDevs: S.cashDevs };
+        }
+        case 'unbindCashDev': {
+          need(u, ['admin']);
+          S.cashDevs = (S.cashDevs || []).filter(function (x) { return x.h !== p.h; }); return { cashDevs: S.cashDevs };
+        }
         case 'saveLoyalty': {
           need(u, ['admin']);
           var every = Math.round(Number(p.every) || 0), maxValue = num(p.maxValue);
@@ -688,10 +699,13 @@ var HELIOS = (function () {
     if (!u || !u.hash || passHash(u.salt, String(p.pass || '')) !== u.hash) throw new Error('Грешно потребителско име или парола');
     return u;
   }
+  function devHash(k) { return sha256('helios-dev|' + k); }
   function serve(p, store, env) {
     var db = store.load(), snap = store.snapshot ? store.snapshot() : snapshot(db), out, u;
     try {
       u = authUser(db, p);
+      var cdv = (db.settings && db.settings.cashDevs) || [];   // касиерът влиза само от разрешените компютри
+      if (u.role === 'cashier' && cdv.length && !cdv.some(function (x) { return x.h === devHash(String(p.dev || '')); })) throw new Error('Касата работи само от компютъра на мивката');
       var E = Engine(db, env), doneMap = null;
       var done = function (cid) { if (!doneMap) { doneMap = {}; db.ops.forEach(function (o) { doneMap[o.cid] = 1; }); } return !!doneMap[cid]; };
       var rec = function (cid, action) { if (cid) { done(cid); doneMap[cid] = 1; db.ops.push({ cid: cid, action: action, at: env.today() + ' ' + env.now() }); } };
@@ -724,6 +738,6 @@ var HELIOS = (function () {
   }
 
   return { TABLES: TABLES, SYNCED: SYNCED, DEFAULT_SETTINGS: DEFAULT_SETTINGS, OFFLINE_WRITE: OFFLINE_WRITE, LOCAL_READ: LOCAL_READ, WRITE: WRITE,
-    Engine: Engine, serve: serve, snapshot: snapshot, diff: diff, stamp: stamp, delta: delta, applyDelta: applyDelta, emptyDb: emptyDb, norm: norm, sha256: sha256, passHash: passHash, r2: r2 };
+    Engine: Engine, serve: serve, snapshot: snapshot, diff: diff, stamp: stamp, delta: delta, applyDelta: applyDelta, emptyDb: emptyDb, norm: norm, sha256: sha256, devHash: devHash, passHash: passHash, r2: r2 };
 })();
 if (typeof module !== 'undefined') module.exports = HELIOS;

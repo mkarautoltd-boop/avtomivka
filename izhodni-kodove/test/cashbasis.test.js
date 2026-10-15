@@ -36,3 +36,15 @@ r = call('maria', '1111', 'savePrice', { name: 'Много мръсна кола
 console.log('CASHIER LIMIT OK');
 for (const a of ['monthReport', 'addExpense', 'delExpense']) { r = call('maria', '1111', a, { month: '2026-11', amount: 5, cat: 'Ток', id: 'x' }); assert(!r.ok, a); }
 console.log('ADMIN ONLY OK');
+// касата само от разрешения компютър
+const KASA = 'kasa-computer-key-1234567890', PHONE = 'phone-key-abcdefghijklmnop';
+r = H.serve({ action: 'myDay', login: 'maria', pass: '1111', dev: PHONE }, mem, env); assert(r.ok, 'преди включване от всякъде');
+r = H.serve({ action: 'bindCashDev', login: 'admin', pass: 'helios', dev: KASA, label: 'Каса мивка' }, mem, env); assert(r.ok, r.error); assert.equal(r.cashDevs.length, 1);
+r = H.serve({ action: 'myDay', login: 'maria', pass: '1111', dev: PHONE }, mem, env); assert(!r.ok); console.log('phone:', r.error);
+r = H.serve({ action: 'myDay', login: 'maria', pass: '1111' }, mem, env); assert(!r.ok);
+r = H.serve({ action: 'myDay', login: 'maria', pass: '1111', dev: KASA }, mem, env); assert(r.ok, r.error);
+r = H.serve({ action: 'report', login: 'admin', pass: 'helios', dev: PHONE }, mem, env); assert(r.ok, 'собственикът отвсякъде');
+r = H.serve({ action: 'myWasher', login: 'ivan', pass: '2222', dev: PHONE }, mem, env); console.log('washer from phone:', r.ok || r.error);
+r = H.serve({ action: 'unbindCashDev', login: 'admin', pass: 'helios', h: H.devHash(KASA) }, mem, env); assert(r.ok); assert.equal(r.cashDevs.length, 0);
+r = H.serve({ action: 'myDay', login: 'maria', pass: '1111', dev: PHONE }, mem, env); assert(r.ok, 'след изключване пак от всякъде');
+console.log('CASHDEV OK');

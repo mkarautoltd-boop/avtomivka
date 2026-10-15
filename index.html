@@ -239,7 +239,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="toast" id="toast" role="status"></div>
 <div id="printArea"></div>
 
-<script src="engine.js?v=6ef404dd"></script><!--ENGINE-->
+<script src="engine.js?v=5c98a5c3"></script><!--ENGINE-->
 <script>
 // ▼▼▼ Постави тук URL-а на уеб приложението от Apps Script ▼▼▼
 const API_URL = 'https://script.google.com/macros/s/AKfycbwxW48QL6Rj3_YiB9Xgp6C4xJtLM0zGA6o6m4R-DdUuVR0hso9J-67a-7Khj63vyZ8/exec';
@@ -294,8 +294,10 @@ function busy(on, t) { let b = document.getElementById('busy'); if (!on) { if (b
 /* ---------- API ---------- */
 /*API-START*/
 // заявка към сървъра (Google Apps Script). TypeError = няма връзка; AppError = сървърът отговори с проблем
+// ключ на това устройство (за „Този компютър е касата“) — пази се в браузъра
+const DEVKEY = (() => { let k = load('hl_dev'); if (!k || k.length < 16) { k = Array.from({ length: 32 }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 32)]).join(''); store('hl_dev', k); } return k; })();
 async function post(body) {
-  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ dev: DEVKEY }, body)) });
   const t = await r.text();
   try { return JSON.parse(t); } catch (e) { throw new AppError('Сървърът върна странен отговор. Провери адреса в API_URL и дали Apps Script е публикуван за „Anyone“.'); }
 }
@@ -598,7 +600,7 @@ function rcRestore() {
   try { const r = JSON.parse(load('hl_rc') || 'null'); if (r && r.u === S.uid) Object.keys(r.o).forEach(k => { if (!RCACHE[k]) RCACHE[k] = { t: 0, j: r.o[k] }; }); } catch (e) {}
 }
 // след запис: засегнатите екрани се теглят наново, останалите се показват веднага и се освежават отзад
-const RC_AFFECT = { addExpense: ['monthReport'], delExpense: ['monthReport'], saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll', 'monthReport'] };
+const RC_AFFECT = { addExpense: ['monthReport'], delExpense: ['monthReport'], saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll', 'monthReport'], bindCashDev: ['getSettings'], unbindCashDev: ['getSettings'] };
 function rcAfterWrite(action) {
   const aff = RC_AFFECT[action];
   Object.keys(RCACHE).forEach(k => { if (!aff || aff.indexOf(k.split('|')[1]) >= 0) delete RCACHE[k]; else RCACHE[k].t = 0; });
@@ -726,7 +728,7 @@ async function doLogin(pass, login, remember) {
     toast(e.message, false);
   } finally { busy(false); if ($('#lgo')) $('#lgo').disabled = false; }
 }
-const AUTH_ERR = /Грешно потребителско име или парола|спрян/i;
+const AUTH_ERR = /Грешно потребителско име или парола|спрян|само от компютъра на мивката/i;
 async function fastStart(login, pass, remember) {
   const h = credHash(login, pass), c = creds()[login];
   let a = null; try { a = JSON.parse(load('hl_aboot') || 'null'); } catch (e) {}
@@ -1877,6 +1879,7 @@ async function tabSet() {
       <span><b>${esc(u.name)}</b><div class="muted">${esc(u.username)} · ${ROLE[u.role]}${u.role === 'cashier' ? ' · надник ' + eur(u.dayWage || 0) + (u.canAddWashers ? ' · може да добавя миячи' : ' · без право да добавя миячи') : ''}</div></span></span>
       ${u.active ? '<span class="badge ok">активен</span>' : '<span class="badge gray">спрян</span>'}</button>`).join('') +
     `<button class="btn teal" id="uNew">${ic('plus', 18)} Нов човек</button></div>
+    <div class="sec-t">Компютър на касата</div><div class="card" id="cdCard">${cashDevCard(j)}</div>
     <div class="sec-t">Карта за лоялност</div><div class="card">
       <label style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>Включена</b><div class="muted">Броят се посещенията по номер на колата. Фирмените коли не участват.</div></span><input type="checkbox" class="sw" id="lOn" ${j.loyalty.on ? 'checked' : ''}></label>
       <label class="l" for="lEv">Всяко кое измиване е подарък</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lEv" inputmode="numeric" value="${j.loyalty.every}" style="width:110px"><span class="muted">-о (напр. 10 = всяко 10-о е безплатно)</span></div>
@@ -1910,6 +1913,7 @@ async function tabSet() {
     });
   });
   document.querySelectorAll('[data-ue]').forEach(b => b.onclick = () => /^tmp/.test(b.dataset.ue) ? toast('Изчакай секунда — човекът се записва', false) : userForm(S.userList.find(u => u.id === b.dataset.ue), false));
+  bindCashDev();
   $('#lSave').onclick = async () => {
     try { await api('saveLoyalty', { on: $('#lOn').checked, every: $('#lEv').value, maxValue: $('#lMax').value, payWasher: $('#lPay').checked }); toast('Картата за лоялност е запазена'); tabSet(); }
     catch (e) { toast(e.message, false); }
@@ -2015,6 +2019,27 @@ function userWrite(d) {
   });
 }
 
+// само компютърът на мивката може да работи като каса
+function cashDevCard(j) {
+  const L = j.cashDevs || [], me = HELIOS.devHash(DEVKEY), here = L.some(x => x.h === me);
+  return (L.length ? `<div class="alert" style="border-left-color:var(--green);background:#F0FDF4;border-radius:12px;padding:10px 12px;margin-bottom:8px"><b>🔒 Включено</b><div class="muted">Касиерът може да влиза само от ${L.length === 1 ? 'този компютър' : 'тези компютри'}. От телефон или друг компютър — не.</div></div>` +
+      L.map(x => `<div class="row"><span><b>🖥 ${esc(x.label)}</b>${x.h === me ? ' <span class="badge ok">това устройство</span>' : ''}<div class="muted">разрешен на ${esc(bgDate(x.date))}</div></span><button class="btn sm sec" data-cdx="${esc(x.h)}" style="margin:0">Махни</button></div>`).join('')
+    : `<div class="muted">🔓 Изключено — касиерът може да влиза от всяко устройство.</div>`) +
+    (here ? '' : `<div class="muted" style="margin-top:10px">Натисни бутона <b>само на компютъра на мивката</b>. След това касиерът ще влиза само от него. Ти и миячите влизате отвсякъде.</div>
+      <label class="l" for="cdL">Име на компютъра</label><input class="f" id="cdL" value="${L.length ? 'Каса ' + (L.length + 1) : 'Каса мивка'}">
+      <button class="btn teal" id="cdBind">🖥 Този компютър е касата</button>`);
+}
+function bindCashDev() {
+  const b = $('#cdBind');
+  if (b) b.onclick = async () => {
+    if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = window.innerWidth < 900 ? '⚠ Това изглежда като телефон — натисни пак, ако си сигурен' : 'Сигурен ли си? Натисни пак'; return; }
+    try { const r = await api('bindCashDev', { dev: DEVKEY, label: $('#cdL').value }); toast('Този компютър е касата'); $('#cdCard').innerHTML = cashDevCard(r); bindCashDev(); } catch (e) { toast(e.message, false); }
+  };
+  document.querySelectorAll('[data-cdx]').forEach(x => x.onclick = async () => {
+    if (!x.dataset.sure) { x.dataset.sure = 1; x.textContent = 'Сигурен?'; return; }
+    try { const r = await api('unbindCashDev', { h: x.dataset.cdx }); toast((r.cashDevs || []).length ? 'Компютърът е махнат' : 'Ограничението е изключено'); $('#cdCard').innerHTML = cashDevCard(r); bindCashDev(); } catch (e) { toast(e.message, false); }
+  });
+}
 // услуга в ценоразписа — само собственикът
 let PQ = Promise.resolve(), PQn = 0;
 function priceWrite(action, data, local, okMsg) {
