@@ -288,7 +288,7 @@ function svcIcon(name) {
 const LOGO = `<div class="logo">${ic('sun', 22)}</div>`;
 // въртящото се слънце, докато се чака
 const SUN = '<svg class="sunspin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
-const LOADING = (t = 'Зареждане…') => `<div class="loader" role="status">${SUN}<span>${t}</span></div>`;
+const LOADING = (t = 'Зареждане…') => S.quiet ? '<div style="min-height:40px"></div>' : `<div class="loader" role="status">${SUN}<span>${t}</span></div>`;
 function busy(on, t) { let b = document.getElementById('busy'); if (!on) { if (b) b.remove(); return; } if (!b) { b = document.createElement('div'); b.id = 'busy'; b.className = 'busy'; document.body.appendChild(b); } b.innerHTML = LOADING(t || 'Влизане…'); }
 
 /* ---------- API ---------- */
@@ -450,7 +450,7 @@ function shell(sub, tabs) {
   $('#rfr').onclick = async () => {   // изпраща чакащото, после презарежда с най-новата версия (без изход)
     const b = $('#rfr'); b.disabled = true; b.textContent = '⟳ Обновява…';
     try { if (cashierMode() && NET.queue.length && !NET.off) await flushQueue(); } catch (e) {}
-    store('hl_rc', null); location.reload();
+    store('hl_rc', null); try { sessionStorage.setItem('hl_ss', JSON.stringify({ p: S.pin, l: S.uid, t: S.tab })); } catch (e) {} location.reload();
   };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => go(b.dataset.tab));
 }
@@ -585,8 +585,21 @@ function refreshBg(key, action, data) {
   if (RBUSY[key]) return; RBUSY[key] = 1;
   serverCall(action, data).then(j => {
     const old = RCACHE[key]; if (old && old.t > Date.now()) return; RCACHE[key] = { t: Date.now(), j }; rcSave();
-    if (old && JSON.stringify(old.j) !== JSON.stringify(j) && !document.querySelector('.modal') && S.render) S.render();
+    if (old && JSON.stringify(old.j) !== JSON.stringify(j)) quietRender();
   }).catch(() => {}).finally(() => { delete RBUSY[key]; });
+}
+// тихо опресняване: без „Зареждане…“, без скок на страницата, не докато човекът пише или скролва
+let lastTouch = 0;
+['touchstart', 'pointerdown', 'keydown', 'wheel'].forEach(ev => addEventListener(ev, () => { lastTouch = Date.now(); }, { passive: true }));
+function quietRender() {
+  if (!S.render) return;
+  const ae = document.activeElement, busyNow = document.querySelector('.modal') || (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) || Date.now() - lastTouch < 4000;
+  if (busyNow) { clearTimeout(S.qT); S.qT = setTimeout(quietRender, 4000); return; }
+  const app = $('#app'), y = window.scrollY; if (!app) return;
+  app.style.minHeight = app.offsetHeight + 'px'; S.quiet = true;
+  Promise.resolve(S.render()).catch(() => {}).then(() => new Promise(r => setTimeout(r, 350))).then(() => {
+    S.quiet = false; window.scrollTo(0, y); app.style.minHeight = '';
+  });
 }
 let rcT = 0;
 function rcSave() {
@@ -763,7 +776,8 @@ async function bgLogin(login, pass, h, role) {
     fresh(j);
   } catch (e) { bad(e.message); }
 }
-function logout() { store('hl_aboot', null); store('hl_rc', null); store('mw_pin', null); store('mw_uid', null); S.pin = ''; S.uid = ''; S.user = null; showLogin(); }
+function backTo(ss) { if (ss && ss.t && S.user && document.querySelector(`[data-tab="${ss.t}"]`) && S.tab !== ss.t) go(ss.t); }
+function logout() { try { sessionStorage.removeItem('hl_ss'); } catch (e) {} store('hl_aboot', null); store('hl_rc', null); store('mw_pin', null); store('mw_uid', null); S.pin = ''; S.uid = ''; S.user = null; showLogin(); }
 function route() {
   const r = S.user.role;
   Object.assign(F, { plate: '', svcs: [], washer: '', pay: null, autoFirm: false });
@@ -2086,7 +2100,11 @@ if (API_URL.indexOf('http') !== 0) {
   $('#root').innerHTML = '<div class="wrap"><div class="card">Постави URL-а на Apps Script уеб приложението в <b>API_URL</b> в началото на index.html.</div></div>';
 } else {
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  const p = load('mw_pin'), l = load('mw_uid'); if (p && l) doLogin(p, l, true); else showLogin();
+  let ss = null; try { ss = JSON.parse(sessionStorage.getItem('hl_ss') || 'null'); sessionStorage.removeItem('hl_ss'); } catch (e) {}
+  const p = load('mw_pin'), l = load('mw_uid');
+  if (p && l) doLogin(p, l, true).then(() => backTo(ss));
+  else if (ss && ss.p && ss.l) doLogin(ss.p, ss.l, false).then(() => backTo(ss));   // след „Обнови“ — без нов вход
+  else showLogin();
 }
 /*END*/
 </script>
