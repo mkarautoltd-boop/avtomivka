@@ -93,6 +93,7 @@ input{font:inherit;color:var(--text)}
 .actbar .go:active{transform:scale(.97)}
 .tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);z-index:7;padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabs-in{max-width:560px;margin:0 auto;display:flex}
+@media (max-width:899px){body.typing .tabs{display:none}}
 .tabs button{flex:1;border:0;background:none;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#8A94A8;cursor:pointer}
 .tabs button.on{color:var(--navy)}
 .tabs button.on svg{color:#B8860B}
@@ -590,6 +591,12 @@ function refreshBg(key, action, data) {
 }
 // тихо опресняване: без „Зареждане…“, без скок на страницата, не докато човекът пише или скролва
 let lastTouch = 0;
+// телефон: докато пишеш, долната лента се скрива (иначе с клавиатурата застава по средата); връща се малко след като спреш да пишеш
+const isTyping = () => { const a = document.activeElement; return !!a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && !/checkbox|radio|button|submit/.test(a.type || ''); };
+let typT = 0;
+const typSync = () => { clearTimeout(typT); typT = setTimeout(() => document.body.classList.toggle('typing', window.innerWidth < 900 && isTyping()), 450); };
+document.addEventListener('focusin', () => { if (window.innerWidth < 900 && isTyping()) { clearTimeout(typT); document.body.classList.add('typing'); } });
+document.addEventListener('focusout', typSync); document.addEventListener('click', typSync, true);
 ['touchstart', 'pointerdown', 'keydown', 'wheel'].forEach(ev => addEventListener(ev, () => { lastTouch = Date.now(); }, { passive: true }));
 function quietRender() {
   if (!S.render) return;
@@ -1608,17 +1615,17 @@ async function tabFirms() {
   S.firmList = j.firms;
   const fs = j.firms.filter(f => f.kind !== 'sub'), ss = j.firms.filter(f => f.kind === 'sub');
   setKpis([[fs.filter(f => f.active).length, 'активни фирми'], [ss.filter(f => f.active).length, 'активни абонати'], [j.firms.reduce((s, f) => s + f.plates.length, 0), 'коли']]);
-  const card = f => `<button class="card" data-fi="${j.firms.indexOf(f)}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>${f.kind === 'sub' ? '⭐ ' : ''}${esc(f.name)}</b>${f.active ? `<span class="badge ok">${f.kind === 'sub' ? 'активен' : 'активна'}</span>` : `<span class="badge gray">${f.kind === 'sub' ? 'спрян' : 'спряна'}</span>`}</div>
-      <div class="muted" style="margin-top:4px">${f.eik ? 'ЕИК ' + esc(f.eik) + ' · ' : ''}${f.plates.length} ${f.plates.length === 1 ? 'кола' : 'коли'}${f.kind === 'sub' ? ' · плаща на място' : f.self ? ' · <b>плаща веднага</b>' : ' · фактура в края на месеца'}</div>${f.contact || f.phone ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">${f.contact ? `<span class="badge gray">${ic('users', 13)} ${esc(f.contact)}</span>` : ''}${f.phone ? `<a class="badge blue" style="text-decoration:none" href="tel:${esc(f.phone.replace(/[^+0-9]/g, ''))}" onclick="event.stopPropagation()">☎ ${esc(f.phone)}</a>` : ''}</div>` : ''}
-      ${f.debt > 0.004 ? `<div style="margin-top:6px"><span class="badge bad">дължи ${eur(f.debt)}</span></div>` : ''}
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${Object.keys(f.prices).map(k => `<span class="badge blue">${esc(k)} ${eur(f.prices[k])}</span>`).join('')}</div></button>`;
+  const card = f => { const pl = f.plates.map(prettyPlate), more = pl.length > 8 ? pl.length - 8 : 0;
+    return `<button class="card" data-fi="${j.firms.indexOf(f)}" style="display:block;width:100%;text-align:left;border:0;cursor:pointer;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:17px">${f.kind === 'sub' ? '⭐ ' : ''}${esc(f.name)}</b>
+        <span style="display:flex;gap:6px;align-items:center;flex:none">${f.debt > 0.004 ? `<span class="badge bad">дължи ${eur(f.debt)}</span>` : ''}${f.active ? '' : '<span class="badge gray">спрян</span>'}<span class="muted" style="font-size:20px">›</span></span></div>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${pl.length ? pl.slice(0, 8).map(x => `<span class="pl" style="font-size:13px;padding:3px 8px">${esc(x)}</span>`).join('') + (more ? `<span class="muted">+${more}</span>` : '') : '<span class="muted">няма въведени коли</span>'}</div></button>`; };
   $('#app').innerHTML = `<div style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap"><button class="btn teal" id="fNew" style="flex:1;margin:0">+ Нова фирма</button><button class="btn teal" id="sNew" style="flex:1;margin:0">+ Нов абонат</button></div>
     <div class="sec-t">Фирми</div>${fs.length ? fs.map(card).join('') : '<div class="empty">Още няма въведени фирми.</div>'}
     <div class="sec-t">Абонати · свои цени, плащат на място</div>${ss.length ? ss.map(card).join('') : '<div class="empty">Още няма абонати. Абонатът е клиент със свои цени — касата ги слага сама по номера на колата, а той плаща в брой или с карта.</div>'}`;
   $('#sNew').onclick = () => editFirm(null, true);
   $('#fNew').onclick = () => editFirm(null);
-  document.querySelectorAll('[data-fi]').forEach(b => b.onclick = () => editFirm(S.firmList[+b.dataset.fi]));
+  document.querySelectorAll('[data-fi]').forEach(b => b.onclick = () => { const f = S.firmList[+b.dataset.fi]; if (f.row < 0) return toast('Изчакай секунда — записва се', false); editFirm(f); });
 }
 function editFirm(f, isSub) {
   const plates = f ? f.plates.slice() : [], sub = f ? f.kind === 'sub' : !!isSub;
@@ -1662,13 +1669,19 @@ function editFirm(f, isSub) {
   $('#fAdd').onclick = add;
   $('#fPl').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
   $('#fCancel').onclick = tabFirms;
-  $('#fSave').onclick = async () => {
-    const b = $('#fSave'); b.disabled = true;
-    try {
-      await api('saveFirm', { row: f ? f.row : 0, name: $('#fN').value, eik: $('#fE').value, contact: $('#fC').value, phone: $('#fT').value, email: $('#fM').value, plates, active: $('#fA').checked, kind: sub ? 'sub' : 'firm', self: now,
-        prices: Object.fromEntries([...document.querySelectorAll('[data-fp]')].map(i => [i.dataset.fp, i.value])) });
-      toast(sub ? 'Абонатът е запазен' : 'Фирмата е запазена'); tabFirms();
-    } catch (e) { toast(e.message, false); b.disabled = false; }
+  $('#fSave').onclick = () => {
+    const d = { row: f ? f.row : 0, name: $('#fN').value.trim(), eik: $('#fE').value.trim(), contact: $('#fC').value.trim(), phone: $('#fT').value.trim(), email: $('#fM').value.trim(), plates, active: $('#fA').checked, kind: sub ? 'sub' : 'firm', self: now,
+      prices: Object.fromEntries([...document.querySelectorAll('[data-fp]')].map(i => [i.dataset.fp, i.value])) };
+    // бързи проверки тук, за да не чакаме сървъра
+    const pr = {}; Object.keys(d.prices).forEach(k => { const v = Number(String(d.prices[k]).replace(',', '.')); if (v > 0) pr[k] = Math.round(v * 100) / 100; });
+    if (!d.name) return toast(sub ? 'Въведи име на абоната' : 'Въведи име на фирмата', false);
+    if (!Object.keys(pr).length) return toast(sub ? 'Въведи абонатна цена поне за една услуга' : 'Въведи фирмена цена поне за една услуга', false);
+    const others = (S.firmList || []).filter(x => x.row !== d.row);
+    if (others.some(x => x.name.toLowerCase() === d.name.toLowerCase())) return toast('Вече има фирма или абонат с това име', false);
+    if (d.active) for (const x of others.filter(x => x.active)) { const hit = x.plates.find(p => plates.some(q => normPlate(q) === normPlate(p))); if (hit) return toast(hit + ' вече е към ' + x.name, false); }
+    if (d.phone && !/^[+0-9 ()/-]{6,20}$/.test(d.phone)) return toast('Телефонът изглежда грешен — само цифри, интервали и +', false);
+    firmWrite(d, Object.assign({}, f || {}, { name: d.name, eik: d.eik, contact: d.contact, phone: d.phone, email: d.email, plates: plates.slice(), prices: pr, active: d.active, kind: d.kind, self: d.self, row: f ? f.row : -Date.now(), debt: f ? f.debt : 0 }),
+      sub ? 'Абонатът е запазен' : 'Фирмата е запазена');
   };
   draw(); window.scrollTo(0, 0);
 }
@@ -2033,6 +2046,20 @@ function userWrite(d) {
   });
 }
 
+// фирма/абонат: записва се веднага на екрана, сървърът — отзад (като ценоразписа)
+let FQ = Promise.resolve();
+function firmWrite(data, rec, okMsg) {
+  const key = S.uid + '|firmsAll|{}', c = RCACHE[key];
+  if (c) { const L = c.j.firms, i = L.findIndex(x => x.row === rec.row); if (i >= 0) L[i] = rec; else L.push(rec); c.t = Date.now() + 3600e3; }
+  else delete RCACHE[key];
+  if (S.tab === 'firms') tabFirms();
+  toast(okMsg);
+  FQ = FQ.then(() => serverCall('saveFirm', data)).then(() => {
+    Object.keys(RCACHE).forEach(k => { if (k !== key) RCACHE[k].t = 0; });
+  }).catch(e => { toast('Не се записа: ' + e.message, false); }).finally(() => {
+    if (RCACHE[key]) { RCACHE[key].t = 0; refreshBg(key, 'firmsAll', {}); } else if (S.tab === 'firms') tabFirms();
+  });
+}
 // само компютърът на мивката може да работи като каса
 function cashDevCard(j) {
   const L = j.cashDevs || [], me = HELIOS.devHash(DEVKEY), here = L.some(x => x.h === me);
