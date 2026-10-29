@@ -48,3 +48,8 @@ r = H.serve({ action: 'myWasher', login: 'ivan', pass: '2222', dev: PHONE }, mem
 r = H.serve({ action: 'unbindCashDev', login: 'admin', pass: 'helios', h: H.devHash(KASA) }, mem, env); assert(r.ok); assert.equal(r.cashDevs.length, 0);
 r = H.serve({ action: 'myDay', login: 'maria', pass: '1111', dev: PHONE }, mem, env); assert(r.ok, 'след изключване пак от всякъде');
 console.log('CASHDEV OK');
+// касиер, който не е работил днес, но има неизплатен надник от предишни дни, се вижда в отчета за деня
+T = '2026-11-13';
+r = A('report', { date: T }); const mc = r.cashiers.find(c => c.name === 'Мария');
+console.log('Мария днес:', JSON.stringify(mc)); assert(mc && mc.worked === false && mc.owed > 0);
+console.log('CASHIER OWED OK');

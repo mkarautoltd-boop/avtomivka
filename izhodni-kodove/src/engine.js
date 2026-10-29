@@ -477,9 +477,9 @@ var HELIOS = (function () {
               unpaid: act.filter(function (k) { return !k.pay; }).length, revenueUnpaid: r2(sum(act.filter(function (k) { return !k.pay; }), amt)),
               cashierPay: cp, company: r2(rev - wp2 - cp), voided: x.kasa.filter(function (k) { return k.void; }).length, paidOut: r2(sum(pays, function (y) { return y.amount; })) },
             payments: pays.slice().reverse(),
-            cashiers: db.users.filter(function (c) { return c.role === 'cashier' && workDays(c.name).indexOf(rd) >= 0; }).map(function (c) {
-              var tk = db.payouts.filter(function (y) { return y.kind === 'cashier' && y.washer === c.name && y.date === rd; });
-              return { name: c.name, wage: c.dayWage || 0, taken: r2(sum(tk, function (y) { return y.amount; })), time: tk.length ? tk[tk.length - 1].time : '', owed: cashRoll(c).owed }; }),
+            cashiers: db.users.filter(function (c) { return c.role === 'cashier' && (workDays(c.name).indexOf(rd) >= 0 || (rd === T && cashRoll(c).owed > 0.004)); }).map(function (c) {
+              var tk = db.payouts.filter(function (y) { return y.kind === 'cashier' && y.washer === c.name && y.date === rd; }), cr = cashRoll(c);
+              return { name: c.name, wage: c.dayWage || 0, worked: workDays(c.name).indexOf(rd) >= 0, prev: cr.prev, taken: r2(sum(tk, function (y) { return y.amount; })), time: tk.length ? tk[tk.length - 1].time : '', owed: cr.owed }; }),
             noReceipt: nr, noWasher: nw, washers: ws, kasa: x.kasa.slice().reverse() };
         }
         case 'monthReport': {
@@ -574,7 +574,17 @@ var HELIOS = (function () {
             if (!k.handedAt) f.unsigned = (f.unsigned || 0) + 1;
           });
           Object.keys(fb).forEach(function (key) { var f = fb[key]; f.pays = db.firmPays.filter(function (y) { return y.firm === f.name && y.month === fm; }); f.paid = r2(sum(f.pays, function (y) { return y.amount; })); f.rest = r2(f.total - f.paid); });
-          return { month: fm, firms: Object.keys(fb).map(function (key) { return fb[key]; }).sort(function (a, b) { return b.total - a.total; }), older: firmDebts().filter(function (y) { return y.month !== fm; }) };
+          var ob = {};   // фирми, които плащат веднага, и абонати — само справка, без задължения
+          db.kasa.filter(function (k) { return k.date.slice(0, 7) === fm && k.firm && k.pay !== 'firm' && !k.void; }).forEach(function (k) {
+            var src = find(db.firms, function (y) { return y.name === k.firm; }) || {};
+            var o = ob[k.firm] || (ob[k.firm] = { name: k.firm, kind: fkind(src), eik: src.eik || '', contact: src.contact || '', phone: src.phone || '', email: src.email || '', count: 0, total: 0, cash: 0, card: 0, unpaid: 0, items: [], pays: [], paid: 0, rest: 0, onsite: true });
+            o.count++; o.total = r2(o.total + k.price);
+            if (k.pay === 'cash') o.cash = r2(o.cash + k.price); else if (k.pay === 'card') o.card = r2(o.card + k.price); else o.unpaid = r2(o.unpaid + k.price);
+            o.items.push({ date: k.date, time: k.time, plate: k.plate, service: k.service, price: k.price, pay: k.pay || '' });
+          });
+          Object.keys(ob).forEach(function (key) { ob[key].rest = ob[key].unpaid; });
+          return { month: fm, firms: Object.keys(fb).map(function (key) { return fb[key]; }).sort(function (a, b) { return b.total - a.total; }), older: firmDebts().filter(function (y) { return y.month !== fm; }),
+            onsite: Object.keys(ob).map(function (key) { return ob[key]; }).sort(function (a, b) { return b.total - a.total; }) };
         }
         case 'firmPay': {
           need(u, ['admin']);

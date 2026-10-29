@@ -240,7 +240,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="toast" id="toast" role="status"></div>
 <div id="printArea"></div>
 
-<script src="engine.js?v=5c98a5c3"></script><!--ENGINE-->
+<script src="engine.js?v=0509b61f"></script><!--ENGINE-->
 <script>
 // ▼▼▼ Постави тук URL-а на уеб приложението от Apps Script ▼▼▼
 const API_URL = 'https://script.google.com/macros/s/AKfycbwxW48QL6Rj3_YiB9Xgp6C4xJtLM0zGA6o6m4R-DdUuVR0hso9J-67a-7Khj63vyZ8/exec';
@@ -1441,7 +1441,7 @@ async function tabRep() {
   if (debt.length) h += `<div class="sec-t">Неизплатени заплати</div><div class="card">` + debt.map(w =>
     `<div class="row"><div><b>${esc(w.name)}</b><div class="muted">${w.prev > 0.004 ? 'от предишни дни ' + eur(w.prev) + ' · ' : ''}от този ден ${eur(w.owed - w.prev)}</div></div><b class="tnum" style="color:var(--amber)">${eur(w.owed)}</b></div>`).join('') + '</div>';
   if (j.cashiers && j.cashiers.length) h += `<div class="sec-t">Касиери · надник</div><div class="card">` + j.cashiers.map(c =>
-    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">надник ${eur(c.wage)}${c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето'}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
+    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">${c.worked === false ? 'не е работил днес · от предишни дни' : 'надник ' + eur(c.wage) + (c.prev > 0.004 ? ' · от предишни дни ' + eur(c.prev) : '') + (c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето')}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
   if (j.payments.length) h += `<div class="sec-t">Изплатени заплати</div><div class="card">` + j.payments.map(x =>
     `<div class="row"><div><b>${esc(x.washer)}</b>${x.kind === 'cashier' ? ' <span class="badge blue">надник касиер</span>' : ''}<div class="muted">${esc(x.time)}${x.kind === 'cashier' ? '' : ' · платил: ' + esc(x.cashier)}</div></div><b class="tnum">${eur(x.amount)}</b></div>`).join('') + '</div>';
   $('#rep').innerHTML = h;
@@ -1514,7 +1514,22 @@ async function tabInv() {
       ${f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => `<div class="row"><div><span class="pl">${esc(i.plate)}</span><div class="muted">${esc(bgDate(i.date))} ${esc(i.time)} · ${esc(i.service)}</div>
         <div style="margin-top:3px">${i.handedAt ? `<span class="badge ok">✍ взета ${esc(String(i.handedAt).slice(11))}${i.driver ? ' · ' + esc(i.driver) : ''}${i.handMode === 'paper' ? ' · подпис на хартия' : ''}</span>` : '<span class="badge bad">не е предадена</span>'}</div></div>
         <div style="display:flex;align-items:center;gap:8px">${i.sig && i.sig.indexOf('data:image/') === 0 ? `<img src="${i.sig}" alt="подпис" style="height:28px;border:1px solid var(--line);border-radius:6px;background:#fff">` : ''}<span class="tnum">${eur(i.price)}</span></div></div>`).join('')}
-    </details>`).join('') : '<div class="empty">Няма измивания на фирми за този месец.</div>');
+    </details>`).join('') : '<div class="empty">Няма измивания на фирми по фактура за този месец.</div>') +
+    ((j.onsite || []).length ? `<div class="sec-t">Плащат на място · фирми и абонати</div>` + j.onsite.map((f, fi) => `<details class="card"><summary style="list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center">
+      <div><b>${f.kind === 'sub' ? '⭐ ' : ''}${esc(f.name)}</b><div class="muted">${f.count} ${f.count === 1 ? 'измиване' : 'измивания'} · ${byCar(f.items).length} ${byCar(f.items).length === 1 ? 'кола' : 'коли'}</div></div>
+      <div style="text-align:right"><b class="tnum">${eur(f.total)}</b><div>${f.unpaid > 0.004 ? `<span class="badge warn">чака плащане ${eur(f.unpaid)}</span>` : '<span class="badge ok">✓ платено</span>'}</div></div></summary>
+      <div style="background:var(--soft);border-radius:12px;padding:4px 12px;margin-top:12px">
+        <div class="row" style="padding:8px 0"><span class="muted">В брой</span><b class="tnum">${eur(f.cash)}</b></div>
+        <div class="row" style="padding:8px 0"><span class="muted">С карта</span><b class="tnum">${eur(f.card)}</b></div>
+        ${f.unpaid > 0.004 ? `<div class="row" style="padding:8px 0"><span class="muted">Чака плащане</span><b class="tnum" style="color:var(--amber)">${eur(f.unpaid)}</b></div>` : ''}</div>
+      <button class="btn sec" data-orep="${fi}">${ic('file', 18)} Справка за клиента (PDF / Excel)</button>
+      <div class="sec-t" style="margin-top:12px">По коли</div>
+      ${byCar(f.items).map(c => `<div class="row"><div><span class="pl">${esc(c.plate)}</span><div class="muted">${c.n} ${c.n === 1 ? 'измиване' : 'измивания'}</div></div><b class="tnum">${eur(c.total)}</b></div>`).join('')}
+      <div class="sec-t">Всички измивания</div>
+      ${f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => `<div class="row"><div><span class="pl">${esc(i.plate)}</span><div class="muted">${esc(bgDate(i.date))} ${esc(i.time)} · ${esc(i.service)}</div></div>
+        <div style="text-align:right"><b class="tnum">${eur(i.price)}</b><div class="muted">${PAYW[i.pay] || 'чака плащане'}</div></div></div>`).join('')}
+    </details>`).join('') : '');
+  document.querySelectorAll('[data-orep]').forEach(b => b.onclick = () => firmReport(j.onsite[+b.dataset.orep], mName(j.month)));
   document.querySelectorAll('[data-om]').forEach(b => b.onclick = () => { S.invMonth = b.dataset.om; tabInv(); });
   document.querySelectorAll('[data-fp]').forEach(b => b.onclick = () => firmPayModal(j.firms[+b.dataset.fp], j.month, mName(j.month)));
   document.querySelectorAll('[data-frep]').forEach(b => b.onclick = () => firmReport(j.firms[+b.dataset.frep], mName(j.month)));
@@ -1529,6 +1544,7 @@ const REP_CSS = `.a4{font-family:Onest,Arial,sans-serif;color:#111;background:#f
 .a4 th,.a4 td{text-align:left;white-space:normal}.a4 td{padding:5px 8px;border-bottom:1px solid #eee}.a4 td.r,.a4 th.r{text-align:right}.a4 tr.tot td{font-weight:800;border-top:2px solid #111;border-bottom:0}
 .a4 h2{font-size:13px;margin:14px 0 4px;text-transform:uppercase;letter-spacing:.06em}.a4 .sign{display:flex;justify-content:space-between;margin-top:40px}.a4 .foot{margin-top:24px;font-size:10px;color:#888;text-align:center}
 @media print{@page{size:A4;margin:12mm}.a4{padding:0;max-width:none}.a4 th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+const PAYW = { cash: 'в брой', card: 'с карта' };
 function firmReportHtml(f, label) {
   const e = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' €';
   const items = f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)), cars = byCar(items);
@@ -1537,16 +1553,19 @@ function firmReportHtml(f, label) {
     <h1>Справка за извършени измивания</h1><div class="muted">Период: ${esc(label)}</div>
     <div style="margin-top:10px"><b>${esc(f.name)}</b>${f.eik ? ' · ЕИК ' + esc(f.eik) : ''}${f.contact ? '<br>Лице за контакт: ' + esc(f.contact) : ''}${f.phone ? ' · тел. ' + esc(f.phone) : ''}</div>
     <div class="boxes"><div class="box"><span class="muted">Измивания</span><b>${f.count}</b></div><div class="box"><span class="muted">Коли</span><b>${cars.length}</b></div>
-      <div class="box"><span class="muted">Сума</span><b>${e(f.total)}</b></div><div class="box"><span class="muted">${f.rest > 0.004 ? 'Остава за плащане' : 'Статус'}</span><b>${f.rest > 0.004 ? e(f.rest) : 'Платено'}</b></div></div>
+      <div class="box"><span class="muted">Сума</span><b>${e(f.total)}</b></div><div class="box"><span class="muted">${f.rest > 0.004 ? (f.onsite ? 'Чака плащане' : 'Остава за плащане') : 'Статус'}</span><b>${f.rest > 0.004 ? e(f.rest) : 'Платено'}</b></div></div>
     <h2>По коли</h2><table><tr><th>Рег. номер</th><th class="r">Измивания</th><th class="r">Сума</th></tr>
       ${cars.map(c => `<tr><td>${esc(c.plate)}</td><td class="r">${c.n}</td><td class="r">${e(c.total)}</td></tr>`).join('')}
       <tr class="tot"><td>Общо</td><td class="r">${f.count}</td><td class="r">${e(f.total)}</td></tr></table>
+    ${f.onsite ? `<h2>Всички измивания</h2><table><tr><th>№</th><th>Дата</th><th>Час</th><th>Рег. номер</th><th>Услуга</th><th>Платено</th><th class="r">Цена</th></tr>
+      ${items.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(bgDate(i.date))}</td><td>${esc(i.time)}</td><td>${esc(i.plate)}</td><td>${esc(i.service)}</td><td>${PAYW[i.pay] || '<span style="color:#B45309">чака</span>'}</td><td class="r">${e(i.price)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="6">Общо за периода${f.cash || f.card ? ' (в брой ' + e(f.cash) + ' · с карта ' + e(f.card) + ')' : ''}</td><td class="r">${e(f.total)}</td></tr></table>` : `
     <h2>Всички измивания</h2><table><tr><th>№</th><th>Дата</th><th>Час</th><th>Рег. номер</th><th>Услуга</th><th>Взета</th><th>Подпис</th><th class="r">Цена</th></tr>
       ${items.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(bgDate(i.date))}</td><td>${esc(i.time)}</td><td>${esc(i.plate)}</td><td>${esc(i.service)}</td>
         <td>${i.handedAt ? esc(bgDate(String(i.handedAt).slice(0, 10)).slice(0, 5)) + ' ' + esc(String(i.handedAt).slice(11)) + (i.driver ? `<div style="font-size:10px;color:#667">${esc(i.driver)}</div>` : '') : '<span style="color:#B91C1C">—</span>'}</td>
         <td>${i.sig && i.sig.indexOf('data:image/') === 0 ? `<img src="${i.sig}" alt="подпис" style="height:36px;display:block">` : i.handMode === 'paper' ? 'на хартия' : '<span style="color:#B91C1C">няма</span>'}</td>
         <td class="r">${e(i.price)}</td></tr>`).join('')}
-      <tr class="tot"><td colspan="7">Общо за периода</td><td class="r">${e(f.total)}</td></tr></table>
+      <tr class="tot"><td colspan="7">Общо за периода</td><td class="r">${e(f.total)}</td></tr></table>`}
     ${f.pays.length ? `<h2>Плащания</h2><table><tr><th>Дата</th><th>Начин</th><th>Бележка</th><th class="r">Сума</th></tr>
       ${f.pays.map(x => `<tr><td>${esc(bgDate(x.date))}</td><td>${x.method === 'cash' ? 'в брой' : 'по банка'}</td><td>${esc(x.note || '')}</td><td class="r">${e(x.amount)}</td></tr>`).join('')}
       <tr class="tot"><td colspan="3">Остава</td><td class="r">${e(f.rest)}</td></tr></table>` : ''}
@@ -1573,7 +1592,8 @@ function firmReport(f, label) {
   $('#rpCsv').onclick = () => {
     const q = v => '"' + String(v).replace(/"/g, '""') + '"';
     const rows = [['Дата', 'Час', 'Рег. номер', 'Услуга', 'Взел колата', 'Подпис', 'Цена €']].concat(f.items.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(i => [bgDate(i.date), i.time, i.plate, i.service, i.handedAt ? bgDate(String(i.handedAt).slice(0, 10)) + ' ' + String(i.handedAt).slice(11) + (i.driver ? ' ' + i.driver : '') : '', i.handMode === 'paper' ? 'на хартия' : i.sig ? 'да (на екрана)' : 'няма', String(i.price.toFixed(2)).replace('.', ',')]));
-    rows.push(['', '', '', 'Общо', '', '', String(f.total.toFixed(2)).replace('.', ',')]);
+    if (f.onsite) { rows.length = 0; rows.push(['Дата', 'Час', 'Рег. номер', 'Услуга', 'Платено', 'Цена €']); f.items.slice().sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time)).forEach(i => rows.push([bgDate(i.date), i.time, i.plate, i.service, PAYW[i.pay] || 'чака', String(i.price.toFixed(2)).replace('.', ',')])); rows.push(['', '', '', 'Общо', '', String(f.total.toFixed(2)).replace('.', ',')]); }
+    else rows.push(['', '', '', 'Общо', '', '', String(f.total.toFixed(2)).replace('.', ',')]);
     const csv = '\ufeff' + rows.map(r => r.map(q).join(';')).join('\r\n');
     try {
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
