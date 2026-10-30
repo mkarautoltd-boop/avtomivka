@@ -5,7 +5,7 @@ src = lambda f: open(os.path.join(R, 'src', f), encoding='utf8').read()
 os.makedirs(os.path.join(R, 'dist'), exist_ok=True)
 h = open(os.path.join(R, 'index.html'), encoding='utf8').read()
 # ---- dist ----
-for f in ['engine.js', 'sw.js', 'manifest.json', 'icon-192.png', 'icon-512.png']:
+for f in ['engine.js', 'sw.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'klient.html', 'qr.png']:
     shutil.copy(os.path.join(R, 'src', f), os.path.join(R, 'dist', f))
 # версия на логиката в адреса — Chrome тегли новата заедно с новия екран (без стар кеш)
 import hashlib

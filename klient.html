@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0B0D">
+<title>HELIOS · Автомивка</title>
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+:root{--ink:#0B0B0D;--y:#F2C230;--bg:#F4F4F1;--card:#fff;--mut:#5F6168;--line:#E6E6E1;--ok:#15803D;--warn:#B45309;--bad:#B91C1C;--r:18px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif;font-feature-settings:"locl" 0;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{background:var(--ink);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 18px 22px;border-radius:0 0 26px 26px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand b{font-family:Unbounded,sans-serif;font-size:26px;letter-spacing:3px}
+.brand small{display:block;color:var(--y);font-weight:800;letter-spacing:4px;font-size:11px}
+.top .sub{color:#C9C9C4;font-size:14px;margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;background:#1E1E22;color:#fff;border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;text-decoration:none;border:0}
+.pill.y{background:var(--y);color:var(--ink)}
+main{max-width:560px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+.card{background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+h2{font-family:Unbounded,sans-serif;font-size:20px;margin:0 0 4px}
+.mut{color:var(--mut);font-size:14px}
+label{display:block;font-weight:700;font-size:14px;margin:14px 0 6px}
+input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;font-size:17px;background:#fff;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--ink)}
+.plate{text-transform:uppercase;font-weight:800;letter-spacing:2px;font-size:20px}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font-weight:800;font-size:17px;background:var(--y);color:var(--ink);margin-top:16px;cursor:pointer}
+.btn.dark{background:var(--ink);color:#fff}.btn.ghost{background:#EDEDE8}
+.btn:disabled{opacity:.6}
+.err{background:#FEE2E2;color:var(--bad);border-radius:12px;padding:10px 12px;margin-top:12px;font-weight:700;font-size:14px}
+.okb{background:#DCFCE7;color:var(--ok);border-radius:12px;padding:12px;margin-top:12px;font-weight:700}
+.status{display:flex;gap:14px;align-items:center}
+.status .ic{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;flex:none}
+.status b{font-size:19px}
+.dots{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 4px}
+.dot{width:24px;height:24px;border-radius:50%;border:3px solid var(--y)}
+.dot.on{background:var(--y)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
+.row:last-child{border-bottom:0}
+.row b{white-space:nowrap}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{flex:none;border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;text-align:center;min-width:66px;cursor:pointer}
+.day small{display:block;color:var(--mut);font-size:12px;font-weight:700}
+.day b{font-size:17px}
+.day.on{background:var(--ink);color:#fff;border-color:var(--ink)}.day.on small{color:var(--y)}
+.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.slot{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px 0;font-weight:800;cursor:pointer}
+.slot.on{background:var(--y);border-color:var(--y)}
+.slot:disabled{background:#EFEFEA;color:#A4A49E;text-decoration:line-through;cursor:default}
+.promo{background:var(--ink);color:#fff;border-radius:var(--r);padding:18px;margin-bottom:12px}
+.promo b{display:block;font-family:Unbounded,sans-serif;font-size:18px;color:var(--y);margin-bottom:6px}
+nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav button{border:0;background:none;padding:10px 0 12px;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+nav button.on{color:var(--ink)}
+nav button.on svg{stroke:var(--ink)}
+nav svg{width:24px;height:24px;stroke:#9A9A94;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hide{display:none}
+.load{color:var(--mut);text-align:center;padding:24px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#F2C230"/><g stroke="#F2C230" stroke-width="4" stroke-linecap="round"><line x1="32" y1="4" x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="60"/><line x1="4" y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="60" y2="32"/><line x1="12" y1="12" x2="18" y2="18"/><line x1="46" y1="46" x2="52" y2="52"/><line x1="12" y1="52" x2="18" y2="46"/><line x1="46" y1="18" x2="52" y2="12"/></g></svg>
+    <div><small>АВТОМИВКА</small><b>HELIOS</b></div>
+  </div>
+  <div class="sub" id="sub"><span>Exclusive Carwash &amp; Detailing Center</span></div>
+</header>
+
+<main>
+  <!-- МОЯТА КОЛА -->
+  <section id="t-car">
+    <div class="card" id="carForm">
+      <h2>Моята кола</h2>
+      <p class="mut" style="margin:4px 0 0">Въведи номера на колата и 4-цифрения код от талона. Ще видиш дали колата е готова и колко ти остава до подаръка.</p>
+      <label for="cP">Регистрационен номер</label><input id="cP" class="plate" autocomplete="off" autocapitalize="characters" placeholder="В 1234 ВВ">
+      <label for="cC">Код от талона</label><input id="cC" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="1234" style="letter-spacing:6px;font-weight:800;font-size:20px">
+      <button class="btn" id="cGo">Покажи</button>
+      <div id="cErr"></div>
+    </div>
+    <div id="carOut"></div>
+  </section>
+
+  <!-- ЗАПАЗИ ЧАС -->
+  <section id="t-book" class="hide">
+    <div class="card"><h2>Запази час</h2><p class="mut" style="margin:4px 0 0">Избери ден и час. Ще ти се обадим, ако има нужда да уточним.</p>
+      <label>Ден</label><div class="days" id="bDays"></div>
+      <label>Час</label><div class="slots" id="bSlots"></div>
+      <label for="bS">Услуга</label><select id="bS"></select>
+      <label for="bN">Име</label><input id="bN" autocomplete="name" placeholder="Име и фамилия">
+      <label for="bT">Телефон</label><input id="bT" type="tel" inputmode="tel" autocomplete="tel" placeholder="0888 123 456">
+      <label for="bP">Номер на колата (по желание)</label><input id="bP" class="plate" autocomplete="off" autocapitalize="characters" placeholder="В 1234 ВВ">
+      <label for="bNote">Бележка (по желание)</label><textarea id="bNote" rows="2" placeholder="напр. много мръсна кола, кучешки косми"></textarea>
+      <button class="btn dark" id="bGo">Запази час</button>
+      <div id="bMsg"></div>
+    </div>
+  </section>
+
+  <!-- ЦЕНИ -->
+  <section id="t-price" class="hide"><div class="card"><h2>Цени</h2><div id="pList" class="load">Зареждане…</div></div></section>
+
+  <!-- ПРОМОЦИИ -->
+  <section id="t-promo" class="hide"><div id="prList" class="load">Зареждане…</div>
+    <div class="card"><h2>Контакти</h2><div id="contact" class="mut"></div></div></section>
+</main>
+
+<nav><div>
+  <button data-t="car" class="on"><svg viewBox="0 0 24 24"><path d="M3 16h18v-3l-2-1-2-4H7l-2 4-2 1z"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Колата ми</button>
+  <button data-t="book"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Запази час</button>
+  <button data-t="price"><svg viewBox="0 0 24 24"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Цени</button>
+  <button data-t="promo"><svg viewBox="0 0 24 24"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H8a2.5 2.5 0 1 1 0-5c3 0 4 5 4 5zM12 7h4a2.5 2.5 0 1 0 0-5c-3 0-4 5-4 5z"/></svg>Промоции</button>
+</div></nav>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbwxW48QL6Rj3_YiB9Xgp6C4xJtLM0zGA6o6m4R-DdUuVR0hso9J-67a-7Khj63vyZ8/exec';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const eur = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+const bgDate = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4);
+const store = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+const load = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+async function api(action, data = {}) {
+  let j;
+  try { const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action }, data)) }); j = JSON.parse(await r.text()); }
+  catch (e) { throw new Error('Няма връзка. Опитай пак след малко.'); }
+  if (!j.ok) throw new Error(j.error || 'Грешка');
+  return j;
+}
+// ---------- раздели ----------
+function tab(t) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  ['car', 'book', 'price', 'promo'].forEach(x => $('#t-' + x).classList.toggle('hide', x !== t));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => tab(b.dataset.t));
+
+// ---------- информация ----------
+let INFO = null, pick = { day: null, time: null };
+async function loadInfo() {
+  try { INFO = await api('pubInfo'); } catch (e) { $('#pList').textContent = e.message; $('#prList').textContent = e.message; return; }
+  const I = INFO;
+  $('#sub').innerHTML = `<span>${[I.address, I.hours ? 'всеки ден ' + I.hours.from + '–' + I.hours.to : ''].filter(Boolean).map(esc).join(' · ')}</span>` +
+    `<div style="width:100%;display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">${I.phone ? `<a class="pill y" href="tel:${esc(I.phone.replace(/[^+0-9]/g, ''))}">📞 Обади се</a>` : ''}${I.address ? `<a class="pill" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('HELIOS ' + I.address)}">📍 Карта</a>` : ''}</div>`;
+  $('#pList').className = '';
+  $('#pList').innerHTML = I.prices.map(p => `<div class="row"><span>${esc(p.name)}</span><b>${p.price == null ? 'по договорка' : eur(p.price)}</b></div>`).join('');
+  const promos = (I.loyalty.on ? [{ t: `Всяко ${I.loyalty.every}-о измиване е подарък`, d: 'Без карта — броим посещенията по номера на колата. Виж в „Колата ми“ колко ти остават.' }] : []).concat(I.promos || []);
+  $('#prList').className = '';
+  $('#prList').innerHTML = promos.length ? promos.map(p => `<div class="promo"><b>${esc(p.t)}</b><div>${esc(p.d)}</div></div>`).join('') : '<div class="card mut">Скоро тук ще има промоции.</div>';
+  $('#contact').innerHTML = [I.address ? '📍 ' + esc(I.address) : '', I.hours ? '🕘 Всеки ден ' + esc(I.hours.from) + '–' + esc(I.hours.to) : '', I.phone ? `📞 <a href="tel:${esc(I.phone.replace(/[^+0-9]/g, ''))}">${esc(I.phone)}</a>` : ''].filter(Boolean).join('<br>');
+  $('#bS').innerHTML = I.prices.map(p => `<option>${esc(p.name)}</option>`).join('');
+  if (!I.booking.on) { $('#t-book').innerHTML = '<div class="card"><h2>Запази час</h2><p class="mut">В момента не приемаме записване онлайн. Обади се, за да запазиш час.</p></div>'; return; }
+  pick.day = I.booking.days[0]; drawDays();
+}
+const WD = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+function drawDays() {
+  const I = INFO, B = I.booking;
+  $('#bDays').innerHTML = B.days.map((d, i) => { const w = new Date(d + 'T12:00:00').getDay();
+    return `<button class="day${d === pick.day ? ' on' : ''}" data-d="${d}"><small>${i === 0 ? 'Днес' : i === 1 ? 'Утре' : WD[w]}</small><b>${d.slice(8, 10)}.${d.slice(5, 7)}</b></button>`; }).join('');
+  document.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { pick.day = b.dataset.d; pick.time = null; drawDays(); });
+  const past = t => pick.day === B.today && t <= B.now;
+  $('#bSlots').innerHTML = B.slots.map(t => { const off = past(t) || B.full.indexOf(pick.day + ' ' + t) >= 0;
+    return `<button class="slot${pick.time === t ? ' on' : ''}" data-tm="${t}" ${off ? 'disabled' : ''}>${t}</button>`; }).join('') || '<span class="mut">Няма свободни часове</span>';
+  document.querySelectorAll('[data-tm]').forEach(b => b.onclick = () => { pick.time = b.dataset.tm; drawDays(); });
+}
+$('#bP').value = load('k_plate') || ''; $('#bN').value = load('k_name') || ''; $('#bT').value = load('k_phone') || '';
+$('#bGo').onclick = async () => {
+  const m = $('#bMsg'), b = $('#bGo');
+  if (!pick.time) { m.innerHTML = '<div class="err">Избери час</div>'; return; }
+  b.disabled = true; b.textContent = '⏳ Записване…'; m.innerHTML = '';
+  try {
+    const r = await api('pubBook', { date: pick.day, time: pick.time, service: $('#bS').value, name: $('#bN').value, phone: $('#bT').value, plate: $('#bP').value, note: $('#bNote').value });
+    store('k_name', $('#bN').value); store('k_phone', $('#bT').value); store('k_plate', $('#bP').value);
+    m.innerHTML = `<div class="okb">✓ Запазено: ${bgDate(r.date)} в ${esc(r.time)} ч. Очакваме те!</div>`;
+    INFO.booking.full.push(r.date + ' ' + r.time); pick.time = null; drawDays();
+  } catch (e) { m.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  b.disabled = false; b.textContent = 'Запази час';
+};
+
+// ---------- моята кола ----------
+const IC = {
+  queue: ['#FEF3C7', '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#B45309" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'],
+  washing: ['#DBEAFE', '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.2" stroke-linecap="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>'],
+  done: ['#DCFCE7', '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>']
+};
+async function showCar(plate, code, quiet) {
+  const err = $('#cErr'), b = $('#cGo');
+  if (!quiet) { b.disabled = true; b.textContent = '⏳ Търся…'; }
+  err.innerHTML = '';
+  try {
+    const r = await api('pubCar', { plate, code });
+    store('k_car', JSON.stringify({ plate, code })); if (!$('#bP').value) $('#bP').value = r.plate;
+    $('#carForm').classList.add('hide');
+    const t = r.today, L = r.loyalty;
+    const st = t ? { queue: ['На опашка', t.ahead ? `Пред теб има ${t.ahead} ${t.ahead === 1 ? 'кола' : 'коли'}.` : 'Твоята кола е следващата.'], washing: ['Мие се в момента', 'Скоро ще е готова.'], done: [t.handed || t.paid ? 'Готова' : 'Готова', t.paid ? 'Платено. Приятно каране!' : 'Можеш да я вземеш — плащане на касата.'] }[t.state] : null;
+    $('#carOut').innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><span class="plate">${esc(r.plate)}</span><button class="pill" id="cOut" style="background:#EDEDE8;color:var(--ink)">Друга кола</button></div>
+      ${t ? `<div class="status" style="margin-top:14px"><div class="ic" style="background:${IC[t.state][0]}">${IC[t.state][1]}</div><div><b>${st[0]}</b><div class="mut">${st[1]}</div><div class="mut">Талон № ${esc(t.talon)} · ${esc(t.time)} · ${esc(t.service)} · ${eur(t.price)}</div></div></div>
+        <button class="btn ghost" id="cRe" style="margin-top:12px">⟳ Провери пак</button>` : '<p class="mut" style="margin:10px 0 0">Днес колата не е при нас.</p>'}</div>
+      ${L ? `<div class="card"><h2>${L.freeNow ? '🎁 Следващото измиване е подарък!' : 'Карта за лоялност'}</h2>
+        <div class="dots">${Array.from({ length: L.every }, (_, i) => `<span class="dot${i < L.stamps ? ' on' : ''}"></span>`).join('')}</div>
+        <div class="mut">${L.freeNow ? `Подаръкът е до ${eur(L.gift)}. Кажи на касата.` : `${L.stamps} от ${L.every} · остават ${L.every - L.stamps}, докато следващото е подарък.`}</div></div>` : ''}
+      ${r.booked.length ? `<div class="card"><h2>Запазени часове</h2>${r.booked.map(x => `<div class="row"><span>${bgDate(x.date)} · ${esc(x.time)}<div class="mut">${esc(x.service)}</div></span><b>${x.status === 'done' ? '✓' : ''}</b></div>`).join('')}</div>` : ''}
+      <div class="card"><h2>Последни посещения</h2><p class="mut" style="margin:2px 0 6px">Общо ${r.visits} ${r.visits === 1 ? 'посещение' : 'посещения'}</p>
+        ${r.history.map(x => `<div class="row"><span>${bgDate(x.date)}<div class="mut">${esc(x.service)}</div></span><b>${eur(x.price)}</b></div>`).join('')}</div>`;
+    $('#cOut').onclick = () => { store('k_car', null); $('#carOut').innerHTML = ''; $('#carForm').classList.remove('hide'); $('#cC').value = ''; };
+    if ($('#cRe')) $('#cRe').onclick = () => showCar(plate, code);
+  } catch (e) { $('#carForm').classList.remove('hide'); $('#carOut').innerHTML = ''; err.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  b.disabled = false; b.textContent = 'Покажи';
+}
+$('#cGo').onclick = () => showCar($('#cP').value.trim(), $('#cC').value.trim());
+$('#cC').onkeydown = e => { if (e.key === 'Enter') $('#cGo').click(); };
+
+// ---------- старт ----------
+(function () {
+  if (API_URL.indexOf('http') !== 0) { document.querySelector('main').innerHTML = '<div class="card">Приложението още не е свързано.</div>'; return; }
+  const q = new URLSearchParams(location.search);
+  let car = null; try { car = JSON.parse(load('k_car') || 'null'); } catch (e) {}
+  if (q.get('p') && q.get('c')) car = { plate: q.get('p'), code: q.get('c') };
+  if (car) { $('#cP').value = car.plate; $('#cC').value = car.code; showCar(car.plate, car.code, true); }
+  if (q.get('t')) tab(q.get('t'));
+  loadInfo();
+})();
+</script>
+</body>
+</html>

@@ -571,8 +571,15 @@ async function flushQueue() {
 async function netTick() {
   if (!cashierMode() || !REP || NET.flushing) return;
   if (NET.queue.length) return flushQueue();
-  try { await syncNow(false); goOnline(); refreshCashierKpis(); }
+  try { await syncNow(false); goOnline(); refreshCashierKpis(); bookAlert(); }
   catch (e) { if (!(e instanceof AppError)) goOffline(); }
+}
+// нов час, запазен от клиент → съобщение на касата
+function bookAlert() {
+  const L = ((REP && REP.bookings) || []).filter(b => b.status === 'new' && b.date >= todayStr());
+  if (!S.bkSeen) { S.bkSeen = {}; L.forEach(b => S.bkSeen[b.id] = 1); return; }
+  const nw = L.filter(b => !S.bkSeen[b.id]); nw.forEach(b => S.bkSeen[b.id] = 1);
+  if (nw.length) { const b = nw[0]; toast(`📅 Нов записан час: ${b.date === todayStr() ? 'днес' : bgDate(b.date).slice(0, 5)} в ${b.time} · ${b.name}`); if (S.tab === 'today') tabToday(); }
 }
 setInterval(netTick, 30000);
 window.addEventListener('online', netTick);
@@ -620,7 +627,7 @@ function rcRestore() {
   try { const r = JSON.parse(load('hl_rc') || 'null'); if (r && r.u === S.uid) Object.keys(r.o).forEach(k => { if (!RCACHE[k]) RCACHE[k] = { t: 0, j: r.o[k] }; }); } catch (e) {}
 }
 // след запис: засегнатите екрани се теглят наново, останалите се показват веднага и се освежават отзад
-const RC_AFFECT = { addExpense: ['monthReport'], delExpense: ['monthReport'], saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll', 'monthReport'], bindCashDev: ['getSettings'], unbindCashDev: ['getSettings'] };
+const RC_AFFECT = { addExpense: ['monthReport'], delExpense: ['monthReport'], saveUser: ['users'], saveSettings: ['getSettings'], saveLoyalty: ['getSettings'], saveFirm: ['firmsAll', 'firmMonth'], firmPay: ['firmMonth', 'firmsAll', 'monthReport'], bindCashDev: ['getSettings'], unbindCashDev: ['getSettings'], saveClient: ['getSettings'], bookStatus: ['report', 'bookings'] };
 function rcAfterWrite(action) {
   const aff = RC_AFFECT[action];
   Object.keys(RCACHE).forEach(k => { if (!aff || aff.indexOf(k.split('|')[1]) >= 0) delete RCACHE[k]; else RCACHE[k].t = 0; });
@@ -808,6 +815,7 @@ function talonHtml(j, copy) {
     <div class="trow"><span>Касиер</span><span>${esc(j.cashier)}</span></div><hr>
     ${j.loy ? `<div class="tc" style="font-weight:800;margin-bottom:2px">${j.gift ? 'ТОВА ИЗМИВАНЕ Е ПОДАРЪК!' : j.loy.stamps >= j.loy.every - 1 ? 'СЛЕДВАЩОТО ИЗМИВАНЕ Е ПОДАРЪК!' : `КАРТА HELIOS: ${j.loy.stamps} от ${j.loy.every}`}</div>
     ${!j.gift && j.loy.stamps < j.loy.every - 1 ? `<div class="tc" style="font-size:11px;margin-bottom:4px">Всяко ${j.loy.every}-о измиване е подарък</div>` : ''}<hr>` : ''}
+    ${j.code ? `<div class="tc" style="font-size:12px">Колата готова ли е? Сканирай QR кода на касата.</div><div class="tc" style="font-weight:800">Код: ${esc(j.code)}</div><hr>` : ''}
     <div class="tc">Сложете талона зад чистачката</div></div>`;
 }
 // талон за клиента — печата се само ако собственикът го е включил в Настройки
@@ -821,6 +829,7 @@ function clientTalonHtml(j) {
     <div class="trow" style="font-weight:800;font-size:16px"><span>${j.pay ? 'ОБЩО' : 'ЗА ПЛАЩАНЕ'}</span><span>${eur(j.price)}</span></div>
     <div class="trow"><span>Плащане</span><span>${j.pay ? pay : 'при взимане'}</span></div><hr>
     ${j.loy ? `<div class="tc" style="margin-bottom:4px">${j.gift ? '🎁 Това измиване беше подарък!' : j.loy.stamps >= j.loy.every - 1 ? '🎁 Следващото измиване е подарък!' : `Карта за лоялност: ${j.loy.stamps} от ${j.loy.every}`}</div>` : ''}
+    ${j.code ? `<div class="tc" style="font-size:12px">Следи колата и картата за лоялност:</div><div class="tc" style="font-size:12px">${esc(location.host + location.pathname.replace(/[^/]*$/, ''))}klient.html</div><div class="tc" style="font-weight:800;font-size:16px">Код: ${esc(j.code)}</div><hr>` : ''}
     <div class="tc"><b>Благодарим Ви!</b></div>${S.address ? `<div class="tc" style="font-size:11px">${esc(S.address)}</div>` : ''}<div class="tc" style="font-size:11px">Това не е фискален бон</div></div>`;
 }
 function bothTalons(j, copy) {
@@ -1330,7 +1339,7 @@ async function tabToday() {
       <div class="stat" style="--c:var(--amber)"><b>${eur(sh.paidTill)}</b><span>изплатени заплати</span></div>
       <div class="stat" style="--c:#7C3AED"><b>${eur(sh.taken)}</b><span>взето от пликове</span></div>
       <div class="stat" style="--c:var(--teal)"><b>${eur(sh.expected)}</b><span>в касата сега</span></div></div>`
-    : `<div class="card"><b>Смяната е затворена.</b> <button class="btn teal" id="openSh">Приеми касата · Отвори смяна</button></div>`) + `
+    : `<div class="card"><b>Смяната е затворена.</b> <button class="btn teal" id="openSh">Приеми касата · Отвори смяна</button></div>`) + `<div id="bkBox"></div>
     <div class="sec-t">Талони днес · ${act.length}</div><div class="card">` +
     (j.items.length ? j.items.map(k => `<div class="row"><div><span class="pl">${esc(k.plate)}</span>
         <div class="muted">№${esc(k.talon)} · ${esc(k.time)} · ${esc(k.washer)}<br>${esc(k.service)}</div></div>
@@ -1341,6 +1350,25 @@ async function tabToday() {
   if ($('#handSh')) $('#handSh').onclick = () => closeShiftStart('handover');
   if ($('#takeEnv')) $('#takeEnv').onclick = () => takeModal(tabToday);
   if ($('#openSh')) $('#openSh').onclick = openShiftScreen;
+  drawBookings($('#bkBox'), tabToday);
+}
+// часове, запазени от клиентите през QR страницата
+const BKST = { new: ['чака', 'warn'], done: ['дошъл', 'ok'], noshow: ['не дойде', 'bad'], cancel: ['отказан', 'gray'] };
+async function drawBookings(el, back) {
+  if (!el) return;
+  if (cashierMode() && REP && !NET.off && !NET.queue.length) { try { await syncNow(false); } catch (e) {} }
+  let j; try { j = await api('bookings', {}); } catch (e) { return; }
+  const L = (j.items || []).filter(b => b.status !== 'cancel');
+  if (!L.length) { el.innerHTML = ''; return; }
+  const today = todayStr(), lab = d => d === today ? 'Днес' : bgDate(d).slice(0, 5);
+  el.innerHTML = `<div class="sec-t">Записани часове · ${L.filter(b => b.status === 'new').length}</div><div class="card">` + L.slice(0, 30).map(b => `<div class="row" style="align-items:flex-start">
+      <div style="min-width:0"><b>${lab(b.date)} · ${esc(b.time)}</b> <span class="badge ${BKST[b.status][1]}">${BKST[b.status][0]}</span>
+        <div>${esc(b.name)} · <a href="tel:${esc(b.phone.replace(/[^+0-9]/g, ''))}">${esc(b.phone)}</a>${b.plate ? ' · <span class="pl" style="font-size:12px">' + esc(b.plate) + '</span>' : ''}</div>
+        <div class="muted">${esc(b.service)}${b.note ? ' · ' + esc(b.note) : ''}</div></div>
+      ${b.status === 'new' ? `<span style="display:flex;flex-direction:column;gap:4px;flex:none"><button class="btn sm green" data-bk="${esc(b.id)}" data-st="done" style="margin:0">Дошъл</button><button class="btn sm sec" data-bk="${esc(b.id)}" data-st="noshow" style="margin:0">Не дойде</button><button class="btn sm sec" data-bk="${esc(b.id)}" data-st="cancel" style="margin:0">Откажи</button></span>` : ''}</div>`).join('') + '</div>';
+  el.querySelectorAll('[data-bk]').forEach(b => b.onclick = async () => {
+    try { await api('bookStatus', { id: b.dataset.bk, status: b.dataset.st }); toast('Записано'); back(); } catch (e) { toast(e.message, false); }
+  });
 }
 
 /* ---------- МИЯЧ ---------- */
@@ -1444,7 +1472,8 @@ async function tabRep() {
     `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">${c.worked === false ? 'не е работил днес · от предишни дни' : 'надник ' + eur(c.wage) + (c.prev > 0.004 ? ' · от предишни дни ' + eur(c.prev) : '') + (c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето')}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
   if (j.payments.length) h += `<div class="sec-t">Изплатени заплати</div><div class="card">` + j.payments.map(x =>
     `<div class="row"><div><b>${esc(x.washer)}</b>${x.kind === 'cashier' ? ' <span class="badge blue">надник касиер</span>' : ''}<div class="muted">${esc(x.time)}${x.kind === 'cashier' ? '' : ' · платил: ' + esc(x.cashier)}</div></div><b class="tnum">${eur(x.amount)}</b></div>`).join('') + '</div>';
-  $('#rep').innerHTML = h;
+  $('#rep').innerHTML = '<div id="bkBox"></div>' + h;
+  drawBookings($('#bkBox'), tabRep);
   document.querySelectorAll('[data-env]').forEach(b => b.onclick = () => envModal(b.dataset.env, +b.dataset.amt));
   if ($('#envAdd')) $('#envAdd').onclick = envAddModal;
 }
@@ -1926,6 +1955,7 @@ async function tabSet() {
       <span><b>${esc(u.name)}</b><div class="muted">${esc(u.username)} · ${ROLE[u.role]}${u.role === 'cashier' ? ' · надник ' + eur(u.dayWage || 0) + (u.canAddWashers ? ' · може да добавя миячи' : ' · без право да добавя миячи') : ''}</div></span></span>
       ${u.active ? '<span class="badge ok">активен</span>' : '<span class="badge gray">спрян</span>'}</button>`).join('') +
     `<button class="btn teal" id="uNew">${ic('plus', 18)} Нов човек</button></div>
+    <div class="sec-t">Приложение за клиенти (QR)</div><div class="card" id="clCard">${clientCard(j)}</div>
     <div class="sec-t">Компютър на касата</div><div class="card" id="cdCard">${cashDevCard(j)}</div>
     <div class="sec-t">Карта за лоялност</div><div class="card">
       <label style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>Включена</b><div class="muted">Броят се посещенията по номер на колата. Фирмените коли не участват.</div></span><input type="checkbox" class="sw" id="lOn" ${j.loyalty.on ? 'checked' : ''}></label>
@@ -1960,6 +1990,7 @@ async function tabSet() {
     });
   });
   document.querySelectorAll('[data-ue]').forEach(b => b.onclick = () => /^tmp/.test(b.dataset.ue) ? toast('Изчакай секунда — човекът се записва', false) : userForm(S.userList.find(u => u.id === b.dataset.ue), false));
+  bindClient(j);
   bindCashDev();
   $('#lSave').onclick = async () => {
     try { await api('saveLoyalty', { on: $('#lOn').checked, every: $('#lEv').value, maxValue: $('#lMax').value, payWasher: $('#lPay').checked }); toast('Картата за лоялност е запазена'); tabSet(); }
@@ -2079,6 +2110,42 @@ function firmWrite(data, rec, okMsg) {
   }).catch(e => { toast('Не се записа: ' + e.message, false); }).finally(() => {
     if (RCACHE[key]) { RCACHE[key].t = 0; refreshBg(key, 'firmsAll', {}); } else if (S.tab === 'firms') tabFirms();
   });
+}
+// приложение за клиентите: klient.html — QR код на мивката
+const KLIENT_URL = () => location.origin + location.pathname.replace(/[^/]*$/, '') + 'klient.html';
+function clientCard(j) {
+  const c = Object.assign({ phone: '', hours: { from: '08:00', to: '20:00' }, booking: true, slot: 60, perSlot: 1, promos: [] }, j.client || {});
+  return `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><img src="qr.png" alt="QR код към приложението за клиенти" style="width:110px;height:110px;image-rendering:pixelated;border:1px solid var(--line);border-radius:10px;background:#fff">
+      <div style="flex:1;min-width:180px"><div class="muted">Клиентът сканира кода и вижда: колата готова ли е, картата за лоялност, цени, промоции и запазва час.</div>
+      <div style="margin-top:6px;word-break:break-all"><a href="${esc(KLIENT_URL())}" target="_blank" rel="noopener">${esc(KLIENT_URL())}</a></div>
+      <button class="btn sm teal" id="clPoster" style="margin-top:8px">🖨 Печат на табела с QR</button></div></div>
+    <label class="l" for="clPh">Телефон за клиенти</label><input class="f" id="clPh" type="tel" value="${esc(c.phone)}" placeholder="напр. 0888 123 456">
+    <label class="l">Работно време</label><div style="display:flex;gap:8px;align-items:center"><input class="f" id="clF" type="time" value="${esc(c.hours.from)}" style="max-width:140px"> – <input class="f" id="clT" type="time" value="${esc(c.hours.to)}" style="max-width:140px"></div>
+    <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Запазване на час онлайн</b><div class="muted">Касата вижда часовете в „Днес“.</div></span><input type="checkbox" class="sw" id="clB" ${c.booking ? 'checked' : ''}></label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><div><label class="l" for="clS">Час на всеки</label><select class="f" id="clS" style="padding:12px;font-size:16px">${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${m === c.slot ? 'selected' : ''}>${m} мин</option>`).join('')}</select></div>
+      <div><label class="l" for="clN">Коли в един час</label><input class="f" id="clN" inputmode="numeric" value="${c.perSlot}" style="max-width:110px"></div></div>
+    <label class="l" for="clPr">Промоции (по една на ред: Заглавие | текст)</label><textarea class="f" id="clPr" rows="4" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:15px" placeholder="Кафе + кроасан | Само 3 € докато чакаш колата">${esc(c.promos.map(x => x.t + (x.d ? ' | ' + x.d : '')).join('\n'))}</textarea>
+    <button class="btn green" id="clSave">Запази</button>`;
+}
+function bindClient(j) {
+  $('#clSave').onclick = async () => {
+    const promos = $('#clPr').value.split('\n').map(l => l.split('|')).filter(a => a[0].trim()).map(a => ({ t: a[0].trim(), d: a.slice(1).join('|').trim() }));
+    try { await api('saveClient', { phone: $('#clPh').value, from: $('#clF').value, to: $('#clT').value, booking: $('#clB').checked, slot: $('#clS').value, perSlot: $('#clN').value, promos }); toast('Запазено'); }
+    catch (e) { toast(e.message, false); }
+  };
+  $('#clPoster').onclick = () => {
+    const w = window.open('', '_blank'); if (!w) return toast('Разреши изскачащи прозорци', false);
+    w.document.write(`<!doctype html><html lang="bg"><head><meta charset="utf-8"><title>HELIOS QR</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&family=Manrope:wght@600;800&display=swap"><style>
+      @page{size:A4;margin:0}body{margin:0;font-family:Manrope,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .p{width:210mm;height:297mm;box-sizing:border-box;background:#0B0B0D;color:#fff;padding:22mm 18mm;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center}
+      .b{font-family:Unbounded,sans-serif;font-size:44px;letter-spacing:6px}.y{color:#F2C230}.q{background:#fff;padding:9mm;border-radius:8mm}.q img{width:110mm;height:110mm;image-rendering:pixelated;display:block}
+      h1{font-family:Unbounded,sans-serif;font-size:34px;margin:0;line-height:1.15}ul{list-style:none;padding:0;margin:0;font-size:20px;font-weight:800;line-height:1.7}</style></head><body><div class="p">
+      <div><div class="y" style="font-weight:800;letter-spacing:6px">АВТОМИВКА</div><div class="b">HELIOS</div></div>
+      <h1>Сканирай с телефона</h1><div class="q"><img src="${KLIENT_URL().replace('klient.html', 'qr.png')}" alt=""></div>
+      <ul><li>🚗 Колата ти готова ли е</li><li>🎁 Колко ти остава до подаръка</li><li>📅 Запази час · 💶 Цени и промоции</li></ul>
+      <div style="font-size:15px;color:#C9C9C4">Кодът е на талона ти</div></div><script>setTimeout(() => print(), 700)<\/script></body></html>`);
+    w.document.close();
+  };
 }
 // само компютърът на мивката може да работи като каса
 function cashDevCard(j) {

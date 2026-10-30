@@ -1,0 +1,24 @@
+global.HELIOS = require('../src/engine.js');
+const seed = require('../src/seed.js'), H = HELIOS, assert = require('assert');
+let T = '2026-10-30', clock = '10:00', n = 0;
+const env = { today: () => T, now: () => clock, uid: () => 'c' + (++n) };
+const db = seed(T); const mem = { load: () => db, save: () => {} };
+const call = (a, d = {}, l, p) => H.serve(Object.assign({ action: a, login: l, pass: p }, d), mem, env);
+const M = (a, d) => call(a, d, 'maria', '1111'), A = (a, d) => call(a, d, 'admin', 'helios');
+let r = M('addKasa', { plate: 'В 7777 КК', services: ['Кола вътре+вън'], washer: 'Иван', cid: 'cidX1' }); assert(r.ok, r.error); assert(/^\d{4}$/.test(r.code)); console.log('talon code', r.code);
+r = M('addKasa', { plate: 'В 7777 КК', services: ['Кола вътре+вън'], washer: 'Иван', cid: 'cidX1' }); // повторно — същият код
+const code = db.kasa.find(k => k.id === 'cidX1').code;
+r = call('pubInfo'); assert(r.ok, r.error); console.log('info prices', r.prices.length, 'slots', r.booking.slots.length, 'days', r.booking.days.length);
+r = call('pubCar', { plate: 'в7777кк', code: '0000' }); assert(!r.ok); console.log('wrong code:', r.error);
+r = call('pubCar', { plate: 'в7777кк', code }); assert(r.ok, r.error); console.log('car', JSON.stringify(r.today), JSON.stringify(r.loyalty));
+r = call('pubCar', { plate: 'В7777КК', code, login: 'maria', pass: 'bad' }); assert(r.ok, 'public ignores creds');
+r = call('pubBook', { date: T, time: '15:00', name: 'Петър', phone: '0888 123 456', plate: 'В 7777 КК', service: 'Кола вътре+вън' }); assert(r.ok, r.error);
+r = call('pubBook', { date: T, time: '15:00', name: 'Иво', phone: '0888 999 999' }); assert(!r.ok); console.log('taken:', r.error);
+r = call('pubBook', { date: T, time: '09:00', name: 'Иво', phone: '0888 999 999' }); assert(!r.ok); console.log('past:', r.error);
+r = call('pubInfo'); assert(r.booking.full.indexOf(T + ' 15:00') >= 0);
+r = M('bookings'); assert(r.ok && r.items.length === 1, JSON.stringify(r)); 
+r = M('bookStatus', { id: r.items[0].id, status: 'done' }); assert(r.ok, r.error);
+r = A('saveClient', { phone: '0899 000 111', from: '09:00', to: '18:00', booking: true, slot: 30, perSlot: 2, promos: [{ t: 'Кафе + кроасан', d: '3 €' }] }); assert(r.ok, r.error);
+r = call('pubInfo'); assert.equal(r.phone, '0899 000 111'); assert.equal(r.booking.slots[0], '09:00'); assert.equal(r.promos[0].t, 'Кафе + кроасан');
+r = call('report', {}); assert(!r.ok); console.log('no-auth report blocked:', r.error);
+console.log('CLIENT OK');

@@ -12,7 +12,7 @@ var HELIOS = (function () {
     users:    { sheet: 'Потребители', cols: [['id','s'],['name','s'],['username','s'],['role','s'],['active','b'],['canAddWashers','b'],['dayWage','n'],['salt','s'],['hash','s'],['v','n']] },
     prices:   { sheet: 'Услуги', cols: [['id','s'],['name','s'],['price','n'],['active','b'],['ord','n'],['v','n'],['free','b']] },
     firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n'],['self','b'],['kind','s']] },
-    kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n'],['handedAt','S'],['handedBy','S'],['driver','S'],['handMode','S'],['sig','S']] },
+    kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n'],['handedAt','S'],['handedBy','S'],['driver','S'],['handMode','S'],['sig','S'],['code','s']] },
     wash:     { sheet: 'Миене', cols: [['id','s'],['date','s'],['time','s'],['plate','s'],['np','s'],['service','s'],['washer','s'],['v','n']] },
     payouts:  { sheet: 'Изплащания', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['washer','s'],['amount','n'],['cashier','s'],['kind','S'],['v','n']] },
     firmPays: { sheet: 'ФирмениПлащания', cols: [['id','s'],['firm','s'],['month','s'],['amount','n'],['date','s'],['method','s'],['note','s'],['by','s'],['v','n']] },
@@ -20,16 +20,20 @@ var HELIOS = (function () {
     envs:     { sheet: 'Пликове', cols: [['id','s'],['label','s'],['date','s'],['amount','n'],['byOwner','b'],['receivedBy','S'],['receivedAmount','N'],['receivedAt','S'],['v','n']] },
     takes:    { sheet: 'ВзетоОтПликове', cols: [['id','s'],['env','s'],['seq','n'],['date','s'],['time','s'],['amount','n'],['note','s'],['by','s'],['v','n']] },
     logins:   { sheet: 'Влизания', cols: [['id','s'],['name','s'],['date','s'],['v','n']] },
+    bookings: { sheet: 'Часове', cols: [['id','s'],['date','s'],['time','s'],['name','s'],['phone','s'],['plate','s'],['service','s'],['note','s'],['status','s'],['created','s'],['by','s'],['v','n']] },
     expenses: { sheet: 'Разходи', cols: [['id','s'],['date','s'],['cat','s'],['amount','n'],['method','s'],['note','s'],['by','s'],['void','b'],['v','n']] },
     ops:      { sheet: 'Операции', server: true, cols: [['cid','s'],['action','s'],['at','s']] }
   };
-  var SYNCED = ['users', 'prices', 'firms', 'kasa', 'wash', 'payouts', 'firmPays', 'shifts', 'envs', 'takes', 'logins'];
+  var SYNCED = ['users', 'prices', 'firms', 'kasa', 'wash', 'payouts', 'firmPays', 'shifts', 'envs', 'takes', 'logins', 'bookings'];
   var DEFAULT_SETTINGS = { talonName: 'АВТОМИВКА HELIOS', address: '', clientTalon: false, pct: 40,
     loyalty: { on: true, every: 10, maxValue: 18, payWasher: true } };
   // действия, които касата може да направи и без интернет
-  var OFFLINE_WRITE = ['addKasa', 'payKasa', 'handover', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login'];
-  var LOCAL_READ = ['myDay', 'payroll', 'shiftState', 'loyalty'];
-  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa', 'addExpense', 'delExpense', 'bindCashDev', 'unbindCashDev']);
+  var OFFLINE_WRITE = ['addKasa', 'payKasa', 'handover', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login', 'bookStatus'];
+  var LOCAL_READ = ['myDay', 'payroll', 'shiftState', 'loyalty', 'bookings'];
+  // без вход — страницата за клиентите (QR код на мивката)
+  var PUBLIC = ['pubInfo', 'pubCar', 'pubBook'];
+  var CLIENT_DEF = { phone: '', hours: { from: '08:00', to: '20:00' }, booking: true, slot: 60, perSlot: 1, days: 14, promos: [] };
+  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa', 'addExpense', 'delExpense', 'bindCashDev', 'unbindCashDev', 'pubBook', 'saveClient']);
 
   var r2 = function (x) { return Math.round((+x || 0) * 100) / 100; };
   var num = function (v) { return r2(Number(String(v == null ? '' : v).replace(',', '.')) || 0); };
@@ -77,6 +81,7 @@ var HELIOS = (function () {
   //  ENGINE — всички правила на касата
   // =====================================================================
   function Engine(db, env) {
+    Object.keys(TABLES).forEach(function (t) { if (!db[t]) db[t] = []; });   // нова таблица в стара реплика
     var T = env.today(), NOW = null;
     var now = function () { return NOW || env.now(); };
     var SET = function () { return db.settings; };
@@ -108,6 +113,12 @@ var HELIOS = (function () {
         .forEach(function (k) { c = k.gift ? 0 : c + 1; });
       return c;
     }
+    function talonCode(id) { return String(1000 + parseInt(sha256('code|' + id).slice(0, 8), 16) % 9000); }
+    var CL = function () { var c = SET().client || {}; return { phone: c.phone || '', hours: c.hours || CLIENT_DEF.hours, booking: c.booking !== false, slot: Number(c.slot) || 60, perSlot: Number(c.perSlot) || 1, days: Number(c.days) || 14, promos: c.promos || [] }; };
+    function slotsFor(c) { var out = [], a = c.hours.from.split(':').map(Number), b = c.hours.to.split(':').map(Number), m = a[0] * 60 + a[1], end = b[0] * 60 + b[1];
+      for (; m + c.slot <= end; m += c.slot) out.push(('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + m % 60).slice(-2)); return out; }
+    function addDays(d, n) { var x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+    var liveBook = function () { return db.bookings.filter(function (b) { return b.status !== 'cancel'; }); };
     // ---------- смени и пликове ----------
     var inShift = function (s, x) { return x.date === s.date && x.seq > s.openSeq && (s.closeSeq == null || x.seq <= s.closeSeq); };
     var envById = function (id) { return db.envs.filter(function (e) { return e.id === id; })[0]; };
@@ -240,6 +251,65 @@ var HELIOS = (function () {
           } else db.users.push(Object.assign({ id: uid('u'), dayWage: 0 }, rec));
           return {};
         }
+        case 'pubInfo': {
+          var c0 = CL(), taken = {};
+          liveBook().filter(function (b) { return b.date >= T; }).forEach(function (b) { var key = b.date + ' ' + b.time; taken[key] = (taken[key] || 0) + 1; });
+          var full = Object.keys(taken).filter(function (key) { return taken[key] >= c0.perSlot; });
+          return { name: S.talonName, address: S.address, phone: c0.phone, hours: c0.hours, promos: c0.promos,
+            prices: pricesSorted().filter(function (x) { return x.active; }).map(function (x) { return { name: x.name, price: x.free ? null : x.price }; }),
+            loyalty: { on: !!S.loyalty.on, every: S.loyalty.every },
+            booking: { on: c0.booking, slots: slotsFor(c0), days: Array.from({ length: c0.days }, function (_, i) { return addDays(T, i); }), full: full, today: T, now: now() } };
+        }
+        case 'pubCar': {
+          var pnp = norm(p.plate), pc = String(p.code || '').trim();
+          if (pnp.length < 3 || !/^[0-9]{4}$/.test(pc)) throw new Error('Въведи номера на колата и 4-цифрения код от талона');
+          var mine = db.kasa.filter(function (k) { return !k.void && k.np === pnp; });
+          if (!mine.some(function (k) { return k.code === pc; })) throw new Error('Няма талон с този номер и код. Провери кода на талона.');
+          var Lc = S.loyalty, stc = stamps(pnp), fm = firmOf(pnp), last = mine.slice().sort(function (a, b) { return (b.date + b.time) < (a.date + a.time) ? -1 : 1; });
+          var tk = last.filter(function (k) { return k.date === T; })[0], status = null;
+          if (tk) {
+            var started = db.wash.some(function (w) { return w.date === tk.date && w.np === tk.np && w.washer === tk.washer; });
+            var ahead = dayData(T).active.filter(function (k) { return !k.pay && k.seq < tk.seq && !db.wash.some(function (w) { return w.date === k.date && w.np === k.np && w.washer === k.washer; }); }).length;
+            status = { talon: tk.talon, time: tk.time, service: tk.service, price: tk.price, paid: !!tk.pay && tk.pay !== 'firm', handed: !!tk.handedAt,
+              state: tk.handedAt || (tk.pay && tk.pay !== 'firm' && started) ? 'done' : started ? 'washing' : 'queue', ahead: started ? 0 : ahead };
+          }
+          return { plate: last[0].plate, loyalty: Lc.on && !fm ? { stamps: stc, every: Lc.every, freeNow: stc >= Lc.every - 1, gift: giftValue(pnp) } : null,
+            visits: mine.length, history: last.slice(0, 10).map(function (k) { return { date: k.date, service: k.service, price: k.price }; }), today: status,
+            booked: liveBook().filter(function (b) { return norm(b.plate) === pnp && b.date >= T; }).map(function (b) { return { date: b.date, time: b.time, service: b.service, status: b.status }; }) };
+        }
+        case 'pubBook': {
+          var c1 = CL(); if (!c1.booking) throw new Error('Запазването на час е спряно в момента');
+          var bd = String(p.date || ''), bt = String(p.time || ''), bn = String(p.name || '').trim().slice(0, 60), bp = String(p.phone || '').trim();
+          if (!bn) throw new Error('Въведи име');
+          if (!/^[+0-9 ()/-]{6,20}$/.test(bp)) throw new Error('Въведи телефон, за да можем да се свържем с теб');
+          if (bd < T || bd > addDays(T, c1.days - 1)) throw new Error('Избери ден от списъка');
+          if (slotsFor(c1).indexOf(bt) < 0) throw new Error('Избери час от списъка');
+          if (bd === T && bt <= now()) throw new Error('Този час вече мина — избери по-късен');
+          if (liveBook().filter(function (b) { return b.date === bd && b.time === bt; }).length >= c1.perSlot) throw new Error('Този час току-що беше зает — избери друг');
+          if (liveBook().filter(function (b) { return b.date === bd && b.phone.replace(/\D/g, '') === bp.replace(/\D/g, ''); }).length >= 3) throw new Error('Вече имаш записани часове за този ден');
+          var bk = { id: uid('b'), date: bd, time: bt, name: bn, phone: bp, plate: String(p.plate || '').trim().toUpperCase().slice(0, 15), service: String(p.service || '').slice(0, 80),
+            note: String(p.note || '').trim().slice(0, 200), status: 'new', created: T + ' ' + now(), by: '' };
+          db.bookings.push(bk); return { id: bk.id, date: bd, time: bt };
+        }
+        case 'bookings': {
+          need(u, ['cashier', 'admin']);
+          return { items: db.bookings.filter(function (b) { return b.date >= (p.from || T); }).sort(function (a, b) { return (a.date + a.time) < (b.date + b.time) ? -1 : 1; }) };
+        }
+        case 'bookStatus': {
+          need(u, ['cashier', 'admin']);
+          var bb = find(db.bookings, function (b) { return b.id === p.id; }); if (!bb) throw new Error('Часът не е намерен');
+          if (['new', 'done', 'cancel', 'noshow'].indexOf(p.status) < 0) throw new Error('Невалидно');
+          bb.status = p.status; bb.by = u.name; return {};
+        }
+        case 'saveClient': {
+          need(u, ['admin']);
+          var hf = String(p.from || '08:00'), ht = String(p.to || '20:00');
+          if (!/^\d\d:\d\d$/.test(hf) || !/^\d\d:\d\d$/.test(ht) || hf >= ht) throw new Error('Провери работното време');
+          S.client = { phone: String(p.phone || '').trim().slice(0, 30), hours: { from: hf, to: ht }, booking: !!p.booking,
+            slot: [30, 45, 60, 90, 120].indexOf(Number(p.slot)) >= 0 ? Number(p.slot) : 60, perSlot: Math.max(1, Math.min(10, Math.round(Number(p.perSlot) || 1))), days: 14,
+            promos: (p.promos || []).map(function (x) { return { t: String(x.t || '').trim().slice(0, 60), d: String(x.d || '').trim().slice(0, 300) }; }).filter(function (x) { return x.t; }).slice(0, 10) };
+          return { client: S.client };
+        }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
         case 'bindCashDev': {   // „Този компютър е касата“ — натиска се на самия компютър
           need(u, ['admin']);
@@ -315,12 +385,13 @@ var HELIOS = (function () {
             plate: plate, np: np0, service: items.map(function (x) { return x.name; }).join(' + '), items: items,
             price: r2(sum(items, function (x) { return x.price; })), gift: 0, washer: p.washer, cashier: u.name, void: false, reason: '',
             pay: f && !f.self ? 'firm' : null, firm: f ? f.name : '', paySeq: null, payDate: null, paidAt: null, paidBy: null };
+          k.code = talonCode(k.id);
           if (eligible && p.useGift) { k.gift = r2(Math.min(giftValue(np0), k.price)); k.price = r2(k.price - k.gift); }
           if (!k.pay && k.price <= 0) { k.pay = 'cash'; k.paySeq = seq; k.payDate = T; k.paidAt = time; k.paidBy = u.name; }   // изцяло подарък
           db.kasa.push(k);
           var st = L2.on && !f ? stamps(np0) : null;
           return { id: k.id, talon: k.talon, date: k.date, time: k.time, plate: plate, service: k.service, items: k.items, price: k.price, gift: k.gift,
-            loy: st == null ? null : { stamps: st, every: L2.every }, washer: p.washer, cashier: u.name, pay: k.pay, firm: k.firm, firmKind: f ? f.kind : '' };
+            loy: st == null ? null : { stamps: st, every: L2.every }, washer: p.washer, cashier: u.name, pay: k.pay, firm: k.firm, firmKind: f ? f.kind : '', code: k.code };
         }
         case 'payKasa': {
           need(u, ['cashier', 'admin']);
@@ -713,6 +784,8 @@ var HELIOS = (function () {
   function serve(p, store, env) {
     var db = store.load(), snap = store.snapshot ? store.snapshot() : snapshot(db), out, u;
     try {
+      if (PUBLIC.indexOf(p.action) >= 0) { out = Engine(db, env).handle({ action: p.action, plate: p.plate, code: p.code, date: p.date, time: p.time, name: p.name, phone: p.phone, service: p.service, note: p.note }, { role: 'public', name: '' }) || {}; }
+      else {
       u = authUser(db, p);
       var cdv = (db.settings && db.settings.cashDevs) || [];   // касиерът влиза само от разрешените компютри
       if (u.role === 'cashier' && cdv.length && !cdv.some(function (x) { return x.h === devHash(String(p.dev || '')); })) throw new Error('Касата работи само от компютъра на мивката');
@@ -735,6 +808,7 @@ var HELIOS = (function () {
         if (p.cid && WRITE.indexOf(p.action) >= 0 && done(p.cid)) out = { dup: true };
         else { var q = Object.assign({}, p); delete q._d; delete q._t; delete q.talon; out = E.handle(q, u) || {}; if (WRITE.indexOf(p.action) >= 0) rec(p.cid, p.action); }
       }
+      }
     } catch (e) { return { ok: false, error: e.message }; }
     var ch = diff(db, snap);
     if (Object.keys(ch.tables).length || ch.settings) { stamp(db, ch); store.save(db, ch); }
@@ -747,7 +821,7 @@ var HELIOS = (function () {
     db.settings = JSON.parse(s.settings);
   }
 
-  return { TABLES: TABLES, SYNCED: SYNCED, DEFAULT_SETTINGS: DEFAULT_SETTINGS, OFFLINE_WRITE: OFFLINE_WRITE, LOCAL_READ: LOCAL_READ, WRITE: WRITE,
+  return { TABLES: TABLES, SYNCED: SYNCED, DEFAULT_SETTINGS: DEFAULT_SETTINGS, OFFLINE_WRITE: OFFLINE_WRITE, LOCAL_READ: LOCAL_READ, WRITE: WRITE, PUBLIC: PUBLIC,
     Engine: Engine, serve: serve, snapshot: snapshot, diff: diff, stamp: stamp, delta: delta, applyDelta: applyDelta, emptyDb: emptyDb, norm: norm, sha256: sha256, devHash: devHash, passHash: passHash, r2: r2 };
 })();
 if (typeof module !== 'undefined') module.exports = HELIOS;
