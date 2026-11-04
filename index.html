@@ -240,7 +240,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="toast" id="toast" role="status"></div>
 <div id="printArea"></div>
 
-<script src="engine.js?v=642e3594"></script><!--ENGINE-->
+<script src="engine.js?v=ab541d35"></script><!--ENGINE-->
 <script>
 // ▼▼▼ Постави тук URL-а на уеб приложението от Apps Script ▼▼▼
 const API_URL = 'https://script.google.com/macros/s/AKfycbwxW48QL6Rj3_YiB9Xgp6C4xJtLM0zGA6o6m4R-DdUuVR0hso9J-67a-7Khj63vyZ8/exec';
@@ -1388,7 +1388,7 @@ function renderWasher(j) {
 function dateBar(id) { return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><label class="muted" for="${id}">Дата</label><input class="f" type="date" id="${id}" value="${S.repDate}" style="padding:8px 10px;font-size:15px"></div>`; }
 function repSwitch() {
   const m = S.repMode || 'day';
-  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="rmode">${[['day', 'Ден'], ['month', 'Месец'], ['cash', 'Касиери'], ['clients', 'Клиенти']].map(x => `<button data-m="${x[0]}" class="${m === x[0] ? 'on' : ''}">${x[1]}</button>`).join('')}</div>`;
+  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px" id="rmode">${[['day', 'Ден'], ['month', 'Месец'], ['cash', 'Персонал'], ['clients', 'Клиенти']].map(x => `<button data-m="${x[0]}" class="${m === x[0] ? 'on' : ''}">${x[1]}</button>`).join('')}</div>`;
 }
 function bindSwitch() { document.querySelectorAll('#rmode button').forEach(b => b.onclick = () => { S.repMode = b.dataset.m; tabRep(); }); }
 // справка: кога са влизали касиерите и кога са работили
@@ -1399,16 +1399,22 @@ async function tabCashLog() {
   $('#clm').onchange = () => { S.repMonth = $('#clm').value || todayStr().slice(0, 7); tabCashLog(); };
   let j; try { j = await api('cashierLog', { month: S.repMonth }); } catch (e) { $('#rep').textContent = e.message; return; }
   if (S.tab !== 'rep' || S.repMode !== 'cash') return;
+  const role = S.staffRole || 'cashier', W = role === 'washer';
+  $('#rep').insertAdjacentHTML('beforebegin', `<div class="seg" id="srole" style="grid-template-columns:1fr 1fr;margin-bottom:12px"><button data-r="cashier" class="${W ? '' : 'on'}">Касиери</button><button data-r="washer" class="${W ? 'on' : ''}">Миячи</button></div>`);
+  document.querySelectorAll('#srole button').forEach(b => b.onclick = () => { S.staffRole = b.dataset.r; tabCashLog(); });
+  j.rows = j.rows.filter(r => (r.role || 'cashier') === role);
   const names = [...new Set(j.rows.map(r => r.name))];
-  setKpis([[new Set(j.rows.map(r => r.date)).size, 'дни с касиер'], [j.rows.length, 'надника'], [names.length, names.length === 1 ? 'касиер' : 'касиери']]);
-  if (!j.rows.length) { $('#rep').innerHTML = '<div class="empty">Няма влизания на касиери за този месец.</div>'; return; }
+  setKpis(W ? [[j.rows.reduce((a, r) => a + r.cars, 0), 'коли'], [j.rows.length, 'работни дни'], [names.length, names.length === 1 ? 'мияч' : 'миячи']]
+    : [[new Set(j.rows.map(r => r.date)).size, 'дни с касиер'], [j.rows.length, 'надника'], [names.length, names.length === 1 ? 'касиер' : 'касиери']]);
+  if (!j.rows.length) { $('#rep').innerHTML = `<div class="empty">Няма данни за ${W ? 'миячи' : 'касиери'} за този месец.</div>`; return; }
   const byName = names.map(n => `<div class="row"><b>${esc(n)}</b><span class="tnum">${((k) => k + (k === 1 ? " ден" : " дни"))(j.rows.filter(r => r.name === n).length)}</span></div>`).join('');
   const days = {}; j.rows.forEach(r => (days[r.date] = days[r.date] || []).push(r));
-  $('#rep').innerHTML = `<div class="sec-t">Дни по касиер</div><div class="card">${byName}</div>` + Object.keys(days).map(d => `<div class="sec-t">${esc(bgDate(d))}${days[d].length > 1 ? ' · ' + days[d].length + ' касиери' : ''}</div><div class="card">` + days[d].map(r => `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(r.name)}</b><span class="muted">${r.talons} ${r.talons === 1 ? 'талон' : 'талона'}</span></div>
+  $('#rep').innerHTML = `<div class="sec-t">Дни по ${W ? 'мияч' : 'касиер'}</div><div class="card">${byName}</div>` + Object.keys(days).map(d => `<div class="sec-t">${esc(bgDate(d))}${days[d].length > 1 ? ' · ' + days[d].length + (W ? ' миячи' : ' касиери') : ''}</div><div class="card">` + days[d].map(r => `<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(r.name)}</b><span class="muted">${W ? r.cars + ' ' + (r.cars === 1 ? 'кола' : 'коли') : r.talons + ' ' + (r.talons === 1 ? 'талон' : 'талона')}</span></div>
       <div class="muted">🔑 Влизане: ${r.first ? `<b style="color:var(--ink)">${esc(r.first)}</b>${r.last && r.last !== r.first ? ' · последно ' + esc(r.last) : ''}${r.n > 1 ? ' · ' + r.n + ' пъти' : ''}` : r.n ? 'влизал (без час — преди обновяването)' : 'няма запис'}${r.dev ? ' · ' + esc(r.dev) : ''}</div>
       ${r.shifts.map(s => `<div class="muted">🧾 Смяна: отворил ${esc(s.open)}${s.close ? ' · ' + (s.mode === 'handover' ? 'предал' : 'приключил') + ' ' + esc(s.close) + (s.closeBy && s.closeBy !== r.name ? ' (' + esc(s.closeBy) + ')' : '') : ' · още отворена'}</div>`).join('')}
-      ${r.talons ? `<div class="muted">🚗 Талони: от ${esc(r.firstT)} до ${esc(r.lastT)}</div>` : ''}</div>`).join('') + '</div>').join('');
+      ${r.talons ? `<div class="muted">🚗 Талони: от ${esc(r.firstT)} до ${esc(r.lastT)}</div>` : ''}
+      ${W && r.firstW ? `<div class="muted">🧽 Започнати коли: от ${esc(r.firstW)} до ${esc(r.lastW)}</div>` : ''}</div>`).join('') + '</div>').join('');
 }
 async function tabRep() {
   if (S.repMode === 'month') return tabMonth();

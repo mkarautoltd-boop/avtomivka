@@ -207,7 +207,7 @@ var HELIOS = (function () {
       var S = SET();
       switch (p.action) {
         case 'login':
-          if (u.role === 'cashier') {   // влизания на касиера: първо и последно за деня, брой, от кое устройство
+          if (u.role === 'cashier' || u.role === 'washer') {   // влизания на касиера/мияча: първо и последно за деня, брой, от кое устройство
             var lg = find(db.logins, function (x) { return x.name === u.name && x.date === T; });
             var cdl = (S.cashDevs || []).filter(function (x) { return p.dev && x.h === devHash(String(p.dev)); })[0], dl = p.dev == null ? '' : cdl ? cdl.label : 'друго устройство';
             if (!lg) db.logins.push({ id: p.cid || uid('l'), name: u.name, date: T, first: now(), last: now(), n: 1, dev: dl });
@@ -247,12 +247,14 @@ var HELIOS = (function () {
         case 'cashierLog': {   // справка: кога са влизали касиерите
           need(u, ['admin']);
           var cm = p.month || T.slice(0, 7), cn = {};
-          db.users.filter(function (c) { return c.role === 'cashier'; }).forEach(function (c) { cn[c.name] = 1; });
+          db.users.filter(function (c) { return c.role === 'cashier' || c.role === 'washer'; }).forEach(function (c) { cn[c.name] = c.role; });
           var rows = {};
-          var row = function (d, n) { var key = d + '|' + n; return rows[key] || (rows[key] = { date: d, name: n, first: '', last: '', n: 0, dev: '', shifts: [], talons: 0, firstT: '', lastT: '' }); };
+          var row = function (d, n) { var key = d + '|' + n; return rows[key] || (rows[key] = { date: d, name: n, role: cn[n], first: '', last: '', n: 0, dev: '', shifts: [], talons: 0, firstT: '', lastT: '', cars: 0, firstW: '', lastW: '' }); };
           db.logins.filter(function (x) { return x.date.slice(0, 7) === cm; }).forEach(function (x) { var r0 = row(x.date, x.name); r0.first = x.first || ''; r0.last = x.last || ''; r0.n = Number(x.n) || 1; r0.dev = x.dev || ''; });
           db.shifts.filter(function (x) { return x.date.slice(0, 7) === cm; }).forEach(function (x) { var r0 = row(x.date, x.openBy); r0.shifts.push({ open: x.openT, close: x.closeT || '', closeBy: x.closeBy || '', mode: x.mode || '' }); });
-          db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && cn[k.cashier]; }).forEach(function (k) { var r0 = row(k.date, k.cashier); r0.talons++; if (!r0.firstT || k.time < r0.firstT) r0.firstT = k.time; if (k.time > r0.lastT) r0.lastT = k.time; });
+          db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && cn[k.cashier] === 'cashier'; }).forEach(function (k) { var r0 = row(k.date, k.cashier); r0.talons++; if (!r0.firstT || k.time < r0.firstT) r0.firstT = k.time; if (k.time > r0.lastT) r0.lastT = k.time; });
+          db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && !k.void && cn[k.washer] === 'washer'; }).forEach(function (k) { row(k.date, k.washer).cars++; });
+          db.wash.filter(function (w) { return w.date.slice(0, 7) === cm && cn[w.washer] === 'washer'; }).forEach(function (w) { var r0 = row(w.date, w.washer); if (!r0.firstW || w.time < r0.firstW) r0.firstW = w.time; if (w.time > r0.lastW) r0.lastW = w.time; });
           return { month: cm, rows: Object.keys(rows).map(function (key) { return rows[key]; }).filter(function (r0) { return cn[r0.name]; }).sort(function (a, b) { return a.date === b.date ? (a.name < b.name ? -1 : 1) : (a.date < b.date ? 1 : -1); }) };
         }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
