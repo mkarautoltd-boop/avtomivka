@@ -19,7 +19,7 @@ var HELIOS = (function () {
     shifts:   { sheet: 'Смени', cols: [['id','s'],['no','n'],['date','s'],['openSeq','n'],['openT','s'],['openBy','s'],['openCash','n'],['openDiff','n'],['prevBy','s'],['mode','S'],['closeSeq','N'],['closeT','S'],['closeBy','S'],['counted','N'],['expected','N'],['diff','N'],['leftFloat','N'],['envelope','N'],['v','n']] },
     envs:     { sheet: 'Пликове', cols: [['id','s'],['label','s'],['date','s'],['amount','n'],['byOwner','b'],['receivedBy','S'],['receivedAmount','N'],['receivedAt','S'],['v','n']] },
     takes:    { sheet: 'ВзетоОтПликове', cols: [['id','s'],['env','s'],['seq','n'],['date','s'],['time','s'],['amount','n'],['note','s'],['by','s'],['v','n']] },
-    logins:   { sheet: 'Влизания', cols: [['id','s'],['name','s'],['date','s'],['v','n']] },
+    logins:   { sheet: 'Влизания', cols: [['id','s'],['name','s'],['date','s'],['v','n'],['first','s'],['last','s'],['n','n'],['dev','s']] },
     expenses: { sheet: 'Разходи', cols: [['id','s'],['date','s'],['cat','s'],['amount','n'],['method','s'],['note','s'],['by','s'],['void','b'],['v','n']] },
     ops:      { sheet: 'Операции', server: true, cols: [['cid','s'],['action','s'],['at','s']] }
   };
@@ -207,8 +207,12 @@ var HELIOS = (function () {
       var S = SET();
       switch (p.action) {
         case 'login':
-          if (u.role === 'cashier' && !db.logins.some(function (x) { return x.name === u.name && x.date === T; }))
-            db.logins.push({ id: p.cid || uid('l'), name: u.name, date: T });
+          if (u.role === 'cashier') {   // влизания на касиера: първо и последно за деня, брой, от кое устройство
+            var lg = find(db.logins, function (x) { return x.name === u.name && x.date === T; });
+            var cdl = (S.cashDevs || []).filter(function (x) { return p.dev && x.h === devHash(String(p.dev)); })[0], dl = p.dev == null ? '' : cdl ? cdl.label : 'друго устройство';
+            if (!lg) db.logins.push({ id: p.cid || uid('l'), name: u.name, date: T, first: now(), last: now(), n: 1, dev: dl });
+            else { if (!lg.first) lg.first = now(); lg.last = now(); lg.n = (Number(lg.n) || 1) + 1; if (dl && String(lg.dev || '').split(', ').indexOf(dl) < 0) lg.dev = lg.dev ? lg.dev + ', ' + dl : dl; }
+          }
           return { user: user, talonName: S.talonName, address: S.address, clientTalon: !!S.clientTalon, prices: activeP(), washers: washers(), firms: activeFirms(), today: T };
 
         case 'users':
@@ -239,6 +243,17 @@ var HELIOS = (function () {
             Object.assign(ex, rec);
           } else db.users.push(Object.assign({ id: uid('u'), dayWage: 0 }, rec));
           return {};
+        }
+        case 'cashierLog': {   // справка: кога са влизали касиерите
+          need(u, ['admin']);
+          var cm = p.month || T.slice(0, 7), cn = {};
+          db.users.filter(function (c) { return c.role === 'cashier'; }).forEach(function (c) { cn[c.name] = 1; });
+          var rows = {};
+          var row = function (d, n) { var key = d + '|' + n; return rows[key] || (rows[key] = { date: d, name: n, first: '', last: '', n: 0, dev: '', shifts: [], talons: 0, firstT: '', lastT: '' }); };
+          db.logins.filter(function (x) { return x.date.slice(0, 7) === cm; }).forEach(function (x) { var r0 = row(x.date, x.name); r0.first = x.first || ''; r0.last = x.last || ''; r0.n = Number(x.n) || 1; r0.dev = x.dev || ''; });
+          db.shifts.filter(function (x) { return x.date.slice(0, 7) === cm; }).forEach(function (x) { var r0 = row(x.date, x.openBy); r0.shifts.push({ open: x.openT, close: x.closeT || '', closeBy: x.closeBy || '', mode: x.mode || '' }); });
+          db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && cn[k.cashier]; }).forEach(function (k) { var r0 = row(k.date, k.cashier); r0.talons++; if (!r0.firstT || k.time < r0.firstT) r0.firstT = k.time; if (k.time > r0.lastT) r0.lastT = k.time; });
+          return { month: cm, rows: Object.keys(rows).map(function (key) { return rows[key]; }).filter(function (r0) { return cn[r0.name]; }).sort(function (a, b) { return a.date === b.date ? (a.name < b.name ? -1 : 1) : (a.date < b.date ? 1 : -1); }) };
         }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
         case 'bindCashDev': {   // „Този компютър е касата“ — натиска се на самия компютър
@@ -728,7 +743,7 @@ var HELIOS = (function () {
           if (OFFLINE_WRITE.indexOf(it.action) < 0) return { cid: it.cid, ok: false, error: 'Непозната операция' };
           var who = db.users.filter(function (x) { return x.active && x.username === String(it.by || '').toLowerCase() && (x.role === 'cashier' || x.role === 'admin'); })[0] || u;
           var s2 = snapshot(db);
-          try { var r = E.handle(it, who); rec(it.cid, it.action); return { cid: it.cid, ok: true, r: r }; }
+          try { var r = E.handle(it.action === 'login' ? Object.assign({}, it, { dev: p.dev }) : it, who); rec(it.cid, it.action); return { cid: it.cid, ok: true, r: r }; }
           catch (e) { restore(db, s2); return { cid: it.cid, ok: false, error: e.message, action: it.action }; }
         }) };
       } else {

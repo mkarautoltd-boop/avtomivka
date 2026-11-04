@@ -53,3 +53,10 @@ T = '2026-11-13';
 r = A('report', { date: T }); const mc = r.cashiers.find(c => c.name === 'Мария');
 console.log('Мария днес:', JSON.stringify(mc)); assert(mc && mc.worked === false && mc.owed > 0);
 console.log('CASHIER OWED OK');
+// справка за влизанията на касиерите
+T = '2026-11-14';
+H.serve({ action: 'login', login: 'maria', pass: '1111', dev: 'kasa-computer-key-1234567890', _t: '07:58' }, mem, env);
+clock = '16:00';
+r = A('cashierLog', { month: '2026-11' }); assert(r.ok, r.error);
+const lg = r.rows.find(x => x.name === 'Мария' && x.date === T); console.log('log:', JSON.stringify(lg)); assert(lg && lg.first);
+console.log('CASHLOG OK');
