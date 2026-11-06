@@ -395,6 +395,18 @@ var HELIOS = (function () {
             paidOut: r2(sum(db.payouts.filter(function (x) { return x.date === T; }), function (x) { return x.amount; })),
             shift: os ? shiftCalc(os) : null, envTotal: envTotal(), lastFloat: lc ? lc.leftFloat || 0 : 0, lastBy: lc ? lc.closeBy || '' : '' };
         }
+        case 'myMonth': {   // история на мияча за месеца: колите и заработеното по дни
+          need(u, ['washer']);
+          var mm = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : T.slice(0, 7), md = {};
+          var dayOf = function (d) { return md[d] || (md[d] = { date: d, cars: [], pay: 0, paid: 0 }); };
+          db.kasa.filter(function (k) { return !k.void && k.washer === u.name && String(k.date).slice(0, 7) === mm; }).forEach(function (k) {
+            var dy = dayOf(k.date), pp = r2(wb(k) * PCT() / 100); dy.cars.push({ time: k.time, plate: k.plate, service: k.service, pay: pp }); dy.pay = r2(dy.pay + pp); });
+          db.payouts.filter(function (x) { return x.washer === u.name && String(x.date).slice(0, 7) === mm; }).forEach(function (x) { var dy = dayOf(x.date); dy.paid = r2(dy.paid + x.amount); });
+          var mdays = Object.keys(md).sort().reverse().map(function (d) { md[d].cars.sort(function (a, b) { return a.time < b.time ? -1 : 1; }); return md[d]; });
+          var prm = find(payroll(), function (x) { return x.name === u.name; }) || { owed: 0 };
+          return { month: mm, days: mdays, cars: mdays.reduce(function (a, d) { return a + d.cars.length; }, 0),
+            pay: r2(sum(mdays, function (d) { return d.pay; })), paid: r2(sum(mdays, function (d) { return d.paid; })), owed: prm.owed };
+        }
         case 'payroll':
           need(u, ['cashier', 'admin']);
           return { washers: payroll(), payments: db.payouts.filter(function (x) { return x.date === T; }).slice().reverse(), me: u.role === 'cashier' ? cashRoll(u) : null };

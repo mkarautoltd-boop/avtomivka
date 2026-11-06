@@ -240,7 +240,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="toast" id="toast" role="status"></div>
 <div id="printArea"></div>
 
-<script src="engine.js?v=ab541d35"></script><!--ENGINE-->
+<script src="engine.js?v=4e84f800"></script><!--ENGINE-->
 <script>
 // ▼▼▼ Постави тук URL-а на уеб приложението от Apps Script ▼▼▼
 const API_URL = 'https://script.google.com/macros/s/AKfycbwxW48QL6Rj3_YiB9Xgp6C4xJtLM0zGA6o6m4R-DdUuVR0hso9J-67a-7Khj63vyZ8/exec';
@@ -1344,8 +1344,26 @@ async function tabToday() {
 }
 
 /* ---------- МИЯЧ ---------- */
+function washerSeg(on) {
+  return `<div class="seg" id="wseg" style="grid-template-columns:1fr 1fr;margin-bottom:12px"><button data-w2="day" class="${on === 'day' ? 'on' : ''}">Днес</button><button data-w2="hist" class="${on === 'hist' ? 'on' : ''}">История</button></div>`;
+}
+function bindWasherSeg() { document.querySelectorAll('#wseg button').forEach(b => b.onclick = () => { clearInterval(timer); b.dataset.w2 === 'hist' ? washerHistory() : washerScreen(); }); }
+// история на мияча: колите и заработеното по дни за избран месец
+async function washerHistory() {
+  S.wMonth = S.wMonth || todayStr().slice(0, 7);
+  $('#app').innerHTML = washerSeg('hist') + `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><label class="muted" for="wm">Месец</label><input class="f" type="month" id="wm" value="${S.wMonth}" style="padding:8px 10px;font-size:15px"></div><div id="wh">${LOADING()}</div>`;
+  bindWasherSeg();
+  $('#wm').onchange = e => { S.wMonth = e.target.value || todayStr().slice(0, 7); washerHistory(); };
+  let j; try { j = await api('myMonth', { month: S.wMonth }); } catch (e) { $('#wh').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  if (!$('#wh')) return;
+  setKpis([[j.cars, 'коли за месеца'], [eur(j.pay), 'заработено', 'good'], [eur(j.paid), 'получено'], [eur(j.owed), 'остава да получа']], true);
+  $('#wh').innerHTML = !j.days.length ? '<div class="empty">Няма коли за този месец.</div>' : j.days.map(d => `<div class="sec-t">${esc(bgDate(d.date))} · ${d.cars.length} ${d.cars.length === 1 ? 'кола' : 'коли'}</div>
+    <div class="card">${d.cars.map(c => `<div class="row"><div><span class="pl">${esc(c.plate)}</span><div class="muted">${esc(c.time)} · ${esc(c.service)}</div></div><b class="tnum">${eur(c.pay)}</b></div>`).join('')}
+      <div class="row" style="border:0;padding-top:10px"><b>Заработено</b><b class="tnum">${eur(d.pay)}</b></div>
+      ${d.paid ? `<div class="row" style="border:0;padding-top:0"><span class="muted">Получено този ден</span><span class="tnum">${eur(d.paid)}</span></div>` : ''}</div>`).join('');
+}
 function washerScreen() {
-  $('#app').innerHTML = `
+  $('#app').innerHTML = washerSeg('day') + `
     <div id="pend"></div>
     <div class="card" style="display:flex;gap:10px;align-items:flex-start;background:#FFF7ED"><span class="ico" style="--c:#C2410C">${ic('ticket')}</span>
       <div><b>Без талон не се мие</b><div class="muted">Кола без талон — изпрати клиента на касата. Заплатата ти се смята само от колите с талон.</div></div></div>
@@ -1362,11 +1380,13 @@ function washerScreen() {
     catch (e) { toast(e.message.indexOf('връзка') >= 0 ? 'Няма връзка — „' + P + '“ не е записана. Натисни пак.' : e.message, false); }
     loadWasher();
   };
+  bindWasherSeg();
   loadWasher();
   timer = setInterval(loadWasher, 30000);
 }
 async function loadWasher() {
   let j; try { j = await api('myDay'); } catch (e) { return; }
+  if (!$('#pend')) return;
   S.wj = j; renderWasher(j);
 }
 function renderWasher(j) {
