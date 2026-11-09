@@ -16,7 +16,7 @@ var HELIOS = (function () {
     wash:     { sheet: 'Миене', cols: [['id','s'],['date','s'],['time','s'],['plate','s'],['np','s'],['service','s'],['washer','s'],['v','n']] },
     payouts:  { sheet: 'Изплащания', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['washer','s'],['amount','n'],['cashier','s'],['kind','S'],['v','n']] },
     firmPays: { sheet: 'ФирмениПлащания', cols: [['id','s'],['firm','s'],['month','s'],['amount','n'],['date','s'],['method','s'],['note','s'],['by','s'],['v','n']] },
-    shifts:   { sheet: 'Смени', cols: [['id','s'],['no','n'],['date','s'],['openSeq','n'],['openT','s'],['openBy','s'],['openCash','n'],['openDiff','n'],['prevBy','s'],['mode','S'],['closeSeq','N'],['closeT','S'],['closeBy','S'],['counted','N'],['expected','N'],['diff','N'],['leftFloat','N'],['envelope','N'],['v','n']] },
+    shifts:   { sheet: 'Смени', cols: [['id','s'],['no','n'],['date','s'],['openSeq','n'],['openT','s'],['openBy','s'],['openCash','n'],['openDiff','n'],['prevBy','s'],['mode','S'],['closeSeq','N'],['closeT','S'],['closeBy','S'],['counted','N'],['expected','N'],['diff','N'],['leftFloat','N'],['envelope','N'],['v','n'],['closeD','S']] },
     envs:     { sheet: 'Пликове', cols: [['id','s'],['label','s'],['date','s'],['amount','n'],['byOwner','b'],['receivedBy','S'],['receivedAmount','N'],['receivedAt','S'],['v','n']] },
     takes:    { sheet: 'ВзетоОтПликове', cols: [['id','s'],['env','s'],['seq','n'],['date','s'],['time','s'],['amount','n'],['note','s'],['by','s'],['v','n']] },
     logins:   { sheet: 'Влизания', cols: [['id','s'],['name','s'],['date','s'],['v','n'],['first','s'],['last','s'],['n','n'],['dev','s']] },
@@ -457,7 +457,7 @@ var HELIOS = (function () {
           if (left > counted + 0.009) throw new Error('Не може да оставиш повече, отколкото си преброил');
           var cc = shiftCalc(s1);
           Object.assign(s1, { mode: mode, closeSeq: Number(db.meta.seq) || 0, closeT: now(), closeBy: u.name, counted: counted, expected: cc.expected,
-            diff: r2(counted - cc.expected), leftFloat: left, envelope: r2(counted - left) });
+            diff: r2(counted - cc.expected), leftFloat: left, envelope: r2(counted - left), closeD: T });
           if (mode === 'day' && s1.envelope > 0) db.envs.push({ id: (p.cid ? p.cid + 'e' : uid('e')), label: 'Плик смяна № ' + shiftLabel(s1), date: T, amount: s1.envelope, byOwner: false, receivedBy: null, receivedAmount: null, receivedAt: null });
           return { shift: shiftCalc(s1) };
         }
@@ -473,7 +473,7 @@ var HELIOS = (function () {
         case 'shifts': {
           need(u, ['admin']);
           var d = p.date || T;
-          return { shifts: db.shifts.filter(function (s) { return s.date === d; }).sort(function (a, b) { return b.no - a.no; }).map(shiftCalc),
+          return { shifts: db.shifts.filter(function (s) { return s.date === d || (s.closeD && s.closeD === d) || (!s.closeT && d === T); }).sort(function (a, b) { return b.no - a.no; }).map(shiftCalc),
             envelopes: db.envs.filter(function (e) { return !e.receivedAt || String(e.receivedAt).slice(0, 10) === d; }).map(envView).reverse(), envTotal: envTotal() };
         }
         case 'receiveEnvelope': {
