@@ -252,6 +252,8 @@ let pinBuf = '', timer = null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const eur = n => (Math.round((+n || 0) * 100) / 100).toFixed(2) + ' €';
+const fmtMins = m => { m = Math.round(m || 0); return Math.floor(m / 60) + ' ч' + (m % 60 ? ' ' + (m % 60) + ' мин' : ''); };
+const spanTxt = sp => (sp || []).map(x => esc(x.from) + '–' + (x.open ? 'сега' : esc(x.to)) + (x.late ? ' (неприключена)' : '')).join(', ');
 const PAYL = { cash: 'В брой', card: 'Карта', firm: 'Фирма', null: 'Плаща при взимане' };
 const COLORS = ['#2563EB', '#0D9488', '#7C3AED', '#EA580C', '#DB2777', '#0891B2', '#65A30D', '#CA8A04'];
 function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -1252,13 +1254,13 @@ async function tabPay() {
   if (shiftGate()) return;
   $('#app').innerHTML = LOADING();
   let j; try { j = await api('payroll'); } catch (e) { $('#app').textContent = e.message; return; }
-  const me = j.me, meH = !me || (me.wage <= 0 && me.owed <= 0.004) ? '' : `<div class="sec-t">Моят надник</div><div class="card"><div style="display:flex;align-items:center;gap:12px">
+  const me = j.me, meH = !me || (me.wage <= 0 && !me.hourly && me.owed <= 0.004) ? '' : `<div class="sec-t">Моят надник</div><div class="card"><div style="display:flex;align-items:center;gap:12px">
       <span class="av" style="--c:#B8860B">${esc(initials(S.user.name))}</span>
-      <div style="flex:1;min-width:0"><b>${esc(S.user.name)}</b><div class="muted">надник ${eur(me.wage)} на ден</div>${me.prev > 0.004 ? '<div><span class="badge warn" style="margin-top:4px">има да взема от преди</span></div>' : ''}</div>
+      <div style="flex:1;min-width:0"><b>${esc(S.user.name)}</b><div class="muted">${me.hourly ? `${eur(me.hourWage)} на час · работно време ${esc(me.workStart)}–${esc(me.workEnd)}` : `надник ${eur(me.wage)} на ден`}</div>${me.prev > 0.004 ? '<div><span class="badge warn" style="margin-top:4px">има да взема от преди</span></div>' : ''}</div>
       <div style="text-align:right"><div class="muted">за взимане</div><div class="money">${eur(me.owed)}</div></div></div>
       <div style="margin-top:10px;background:var(--soft);border-radius:12px;padding:4px 12px">
         <div class="row" style="padding:7px 0"><span class="muted">От предишни дни</span><b class="tnum" style="color:${me.prev > 0.004 ? 'var(--amber)' : 'inherit'}">${eur(me.prev)}</b></div>
-        <div class="row" style="padding:7px 0"><span class="muted">+ Надник днес</span><b class="tnum">${eur(me.earnedToday)}</b></div>
+        <div class="row" style="padding:7px 0"><span class="muted">+ Надник днес${me.hourly ? ` <span style="font-size:13px">(${me.spans.length ? spanTxt(me.spans) + ' · ' : ''}${fmtMins(me.mins)})</span>` : ''}</span><b class="tnum">${eur(me.earnedToday)}</b></div>
         <div class="row" style="padding:7px 0"><span class="muted">− Взето днес</span><b class="tnum">${eur(me.paidToday)}</b></div></div>
       ${me.owed > 0.004 ? `<button class="btn teal" id="takeWage">Вземам си надника</button>` : '<div style="margin-top:10px"><span class="badge ok">✓ Взет</span></div>'}</div>`;
   $('#app').innerHTML = meH + `<div class="sec-t">Заплати на миячите</div>` + j.washers.map((w, i) => `<div class="card"><div style="display:flex;align-items:center;gap:12px">
@@ -1450,6 +1452,7 @@ async function tabCashLog() {
       <div class="muted">🔑 Влизане: ${r.first ? `<b style="color:var(--ink)">${esc(r.first)}</b>${r.last && r.last !== r.first ? ' · последно ' + esc(r.last) : ''}${r.n > 1 ? ' · ' + r.n + ' пъти' : ''}` : r.n ? 'влизал (без час — преди обновяването)' : 'няма запис'}${r.dev ? ' · ' + esc(r.dev) : ''}</div>
       ${r.shifts.map(s => `<div class="muted">🧾 Смяна: отворил ${esc(s.open)}${s.close ? ' · ' + (s.mode === 'handover' ? 'предал' : 'приключил') + ' ' + esc(s.close) + (s.closeBy && s.closeBy !== r.name ? ' (' + esc(s.closeBy) + ')' : '') : ' · още отворена'}</div>`).join('')}
       ${r.talons ? `<div class="muted">🚗 Талони: от ${esc(r.firstT)} до ${esc(r.lastT)}</div>` : ''}
+      ${r.mins != null ? `<div class="muted">⏱ Платено време: ${fmtMins(r.mins)} × ${eur(r.hourWage)} = <b>${eur(r.earn)}</b></div>` : ''}
       ${W && r.firstW ? `<div class="muted">🧽 Започнати коли: от ${esc(r.firstW)} до ${esc(r.lastW)}</div>` : ''}</div>`).join('') + '</div>').join('');
 }
 async function tabRep() {
@@ -1504,7 +1507,7 @@ async function tabRep() {
   if (debt.length) h += `<div class="sec-t">Неизплатени заплати</div><div class="card">` + debt.map(w =>
     `<div class="row"><div><b>${esc(w.name)}</b><div class="muted">${w.prev > 0.004 ? 'от предишни дни ' + eur(w.prev) + ' · ' : ''}от този ден ${eur(w.owed - w.prev)}</div></div><b class="tnum" style="color:var(--amber)">${eur(w.owed)}</b></div>`).join('') + '</div>';
   if (j.cashiers && j.cashiers.length) h += `<div class="sec-t">Касиери · надник</div><div class="card">` + j.cashiers.map(c =>
-    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">${c.worked === false ? 'не е работил днес · от предишни дни' : 'надник ' + eur(c.wage) + (c.prev > 0.004 ? ' · от предишни дни ' + eur(c.prev) : '') + (c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето')}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
+    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">${c.worked === false ? 'не е работил днес · от предишни дни' : (c.hourly ? '⏱ ' + (c.spans.length ? spanTxt(c.spans) + ' · ' : '') + fmtMins(c.mins) + ' × ' + eur(c.hourWage) + ' = ' + eur(c.earned) : 'надник ' + eur(c.wage)) + (c.prev > 0.004 ? ' · от предишни дни ' + eur(c.prev) : '') + (c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето')}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
   if (j.payments.length) h += `<div class="sec-t">Изплатени заплати</div><div class="card">` + j.payments.map(x =>
     `<div class="row"><div><b>${esc(x.washer)}</b>${x.kind === 'cashier' ? ' <span class="badge blue">надник касиер</span>' : ''}<div class="muted">${esc(x.time)}${x.kind === 'cashier' ? '' : ' · платил: ' + esc(x.cashier)}</div></div><b class="tnum">${eur(x.amount)}</b></div>`).join('') + '</div>';
   $('#rep').innerHTML = h;
@@ -1898,7 +1901,7 @@ function monthReportHtml(j) {
       <tr class="tot"><td>Оборот общо (в брой ${e(m.cash)} · по банка ${e(m.bank)})</td><td class="r">${e(m.received)}</td></tr></table>
     <h2>Заплати</h2><table><tr><th>Служител</th><th>Длъжност</th><th class="r">Коли / дни</th><th class="r">Заработено</th></tr>
       ${j.washers.filter(w => w.cars || w.earned).map(w => `<tr><td>${esc(w.name)}</td><td>мияч (${j.pct}%)</td><td class="r">${w.cars} ${w.cars === 1 ? 'кола' : 'коли'}</td><td class="r">${e(w.earned)}</td></tr>`).join('')}
-      ${j.cashiers.map(c => `<tr><td>${esc(c.name)}</td><td>касиер (${e(c.wage)}/ден)</td><td class="r">${c.days} ${c.days === 1 ? 'ден' : 'дни'}</td><td class="r">${e(c.earned)}</td></tr>`).join('')}
+      ${j.cashiers.map(c => `<tr><td>${esc(c.name)}</td><td>касиер (${c.hourWage > 0 ? e(c.hourWage) + '/час' : e(c.wage) + '/ден'})</td><td class="r">${c.days} ${c.days === 1 ? 'ден' : 'дни'}${c.mins ? ' · ' + fmtMins(c.mins) : ''}</td><td class="r">${e(c.earned)}</td></tr>`).join('')}
       <tr class="tot"><td colspan="3">Заплати общо</td><td class="r">${e(m.wages)}</td></tr></table>
     <h2>Разходи</h2><table><tr><th>Вид</th><th class="r">Сума</th></tr>
       ${j.expByCat.map(x => `<tr><td>${esc(x.cat)}</td><td class="r">${e(x.amount)}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">Няма въведени разходи</td></tr>'}
@@ -1986,10 +1989,14 @@ async function tabSet() {
     `<button class="btn teal" id="pNew">${ic('plus', 18)} Нова услуга</button></div>
     <div class="sec-t">Екип</div><div class="card">` + us.slice().sort((a, b) => order[a.role] - order[b.role]).map(u => `<button class="row" data-ue="${esc(u.id)}" style="width:100%;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left">
       <span style="display:flex;align-items:center;gap:10px"><span class="av" style="--c:${u.role === 'admin' ? '#0B0B0D' : u.role === 'cashier' ? '#B8860B' : '#2563EB'}">${esc(initials(u.name))}</span>
-      <span><b>${esc(u.name)}</b><div class="muted">${esc(u.username)} · ${ROLE[u.role]}${u.role === 'cashier' ? ' · надник ' + eur(u.dayWage || 0) + (u.canAddWashers ? ' · може да добавя миячи' : ' · без право да добавя миячи') : ''}</div></span></span>
+      <span><b>${esc(u.name)}</b><div class="muted">${esc(u.username)} · ${ROLE[u.role]}${u.role === 'cashier' ? (u.hourWage > 0 ? ' · ' + eur(u.hourWage) + ' на час' : ' · надник ' + eur(u.dayWage || 0)) + (u.canAddWashers ? ' · може да добавя миячи' : ' · без право да добавя миячи') : ''}</div></span></span>
       ${u.active ? '<span class="badge ok">активен</span>' : '<span class="badge gray">спрян</span>'}</button>`).join('') +
     `<button class="btn teal" id="uNew">${ic('plus', 18)} Нов човек</button></div>
     <div class="sec-t">Компютър на касата</div><div class="card" id="cdCard">${cashDevCard(j)}</div>
+    <div class="sec-t">Работно време на касата</div><div class="card"><p class="muted" style="margin:0 0 8px">По него се смята надникът на час: броят се само минутите от смяната между началото и края. Закъснение или по-ранно приключване намалява надника.</p>
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap"><div><label class="l" for="whS">От</label><input class="f" type="time" id="whS" value="${esc(j.workStart || '08:00')}" style="width:130px"></div>
+      <div><label class="l" for="whE">До</label><input class="f" type="time" id="whE" value="${esc(j.workEnd || '18:00')}" style="width:130px"></div>
+      </div><button class="btn green" id="whSave" style="margin-top:12px">Запази работното време</button></div>
     <div class="sec-t">Карта за лоялност</div><div class="card">
       <label style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>Включена</b><div class="muted">Броят се посещенията по номер на колата. Фирмените коли не участват.</div></span><input type="checkbox" class="sw" id="lOn" ${j.loyalty.on ? 'checked' : ''}></label>
       <label class="l" for="lEv">Всяко кое измиване е подарък</label><div style="display:flex;align-items:center;gap:8px"><input class="f money" id="lEv" inputmode="numeric" value="${j.loyalty.every}" style="width:110px"><span class="muted">-о (напр. 10 = всяко 10-о е безплатно)</span></div>
@@ -2028,6 +2035,10 @@ async function tabSet() {
     try { await api('saveLoyalty', { on: $('#lOn').checked, every: $('#lEv').value, maxValue: $('#lMax').value, payWasher: $('#lPay').checked }); toast('Картата за лоялност е запазена'); tabSet(); }
     catch (e) { toast(e.message, false); }
   };
+  $('#whSave').onclick = async () => {
+    try { await api('saveWorkHours', { start: $('#whS').value, end: $('#whE').value }); toast('Работното време е запазено'); tabSet(); }
+    catch (e) { toast(e.message, false); }
+  };
   $('#sSave').onclick = async () => {
     try {
       await api('saveSettings', { talonName: $('#sName').value, address: $('#sAddr').value, clientTalon: $('#sClient').checked });
@@ -2054,7 +2065,7 @@ function userForm(u, cashierMode) {
   if ($('#uLink')) $('#uLink').onclick = () => { const pw = $('#uPass').value; o.remove(); sendLink(u, pw); };
   const draw = () => {
     document.querySelectorAll('#uRole button').forEach(b => b.classList.toggle('on', b.dataset.r === st.role));
-    $('#uCan').innerHTML = st.role === 'cashier' && !cashierMode ? `<label class="l" for="uWage">Надник за ден (€)</label><input class="f money" id="uWage" inputmode="decimal" value="${u && u.dayWage != null ? u.dayWage : 55}" style="width:140px"><label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Може да добавя миячи</b><div class="muted">Касиерът ще има бутон „Нов мияч“.</div></span><input type="checkbox" class="sw" id="uCanW" ${u && u.canAddWashers ? 'checked' : ''}></label>` : '';
+    $('#uCan').innerHTML = st.role === 'cashier' && !cashierMode ? `<label class="l" for="uHour">Надник на час (€)</label><input class="f money" id="uHour" inputmode="decimal" value="${u && u.hourWage ? u.hourWage : ''}" placeholder="0" style="width:140px"><div class="muted">Броят се часовете на смяната в работното време (Настройки → Работно време). Празно или 0 — по надник за ден.</div><label class="l" for="uWage">Надник за ден (€)</label><input class="f money" id="uWage" inputmode="decimal" value="${u && u.dayWage != null ? u.dayWage : 55}" style="width:140px"><label style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px"><span><b>Може да добавя миячи</b><div class="muted">Касиерът ще има бутон „Нов мияч“.</div></span><input type="checkbox" class="sw" id="uCanW" ${u && u.canAddWashers ? 'checked' : ''}></label>` : '';
   };
   document.querySelectorAll('#uRole button').forEach(b => b.onclick = () => { st.role = b.dataset.r; draw(); });
   draw();
@@ -2062,7 +2073,7 @@ function userForm(u, cashierMode) {
   $('#uOk').onclick = async () => {
     if (!cashierMode && S.user.role === 'admin') {
       const d = { id: u ? u.id : '', role: st.role, name: $('#uName').value.trim(), username: $('#uLogin').value.trim().toLowerCase(), newPass: $('#uPass').value,
-        active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '' };
+        active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '', hourWage: $('#uHour') ? ($('#uHour').value.replace(',', '.') || '0') : undefined };
       const list = S.userList || [], other = x => x.id !== d.id;
       if (!d.name) return toast('Въведи име', false);
       if (!/^[a-z0-9._-]{3,20}$/.test(d.username)) return toast('Потребителското име: 3–20 знака, само латиница, цифри, точка, тире', false);
@@ -2075,7 +2086,7 @@ function userForm(u, cashierMode) {
     const ob = $('#uOk'); if (ob.disabled) return; ob.disabled = true; ob.textContent = 'Записване…';
     try {
       await api('saveUser', { id: u ? u.id : '', role: st.role, name: $('#uName').value, username: $('#uLogin').value, newPass: $('#uPass').value,
-        active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '' });
+        active: $('#uAct') ? $('#uAct').checked : true, canAddWashers: $('#uCanW') ? $('#uCanW').checked : false, dayWage: $('#uWage') ? $('#uWage').value.replace(',', '.') : '', hourWage: $('#uHour') ? ($('#uHour').value.replace(',', '.') || '0') : undefined });
       o.remove(); toast(cashierMode ? 'Миячът е добавен' : 'Профилът е запазен');
       if (cashierMode) { await refreshCashierKpis(); tabPay(); } else tabSet();
     } catch (e) { toast(e.message, false); ob.disabled = false; ob.textContent = 'Запази'; }
@@ -2111,7 +2122,7 @@ function userWrite(d) {
   if (c) {
     const list = c.j.users, e = d.id && list.find(x => x.id === d.id);
     const rec = { name: d.name, username: d.username, role: d.role, active: d.active, canAddWashers: d.role === 'cashier' && d.canAddWashers };
-    if (d.role === 'cashier') rec.dayWage = d.dayWage === '' ? (e ? e.dayWage : 0) : Number(d.dayWage);
+    if (d.role === 'cashier') { rec.dayWage = d.dayWage === '' ? (e ? e.dayWage : 0) : Number(d.dayWage); if (d.hourWage !== undefined) rec.hourWage = Number(d.hourWage) || 0; }
     if (e) Object.assign(e, rec); else list.push(Object.assign({ id: 'tmp' + Date.now(), dayWage: 0 }, rec));
     c.t = Date.now() + 3600e3;
     S.washers = list.filter(x => x.role === 'washer' && x.active).map(x => x.name);

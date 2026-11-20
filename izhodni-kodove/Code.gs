@@ -9,7 +9,7 @@ var HELIOS = (function () {
   // ---------- схема на таблиците (листовете в Google Sheets) ----------
   // тип: s = текст, S = текст или празно, n = число, N = число или празно, b = да/не, j = JSON
   var TABLES = {
-    users:    { sheet: 'Потребители', cols: [['id','s'],['name','s'],['username','s'],['role','s'],['active','b'],['canAddWashers','b'],['dayWage','n'],['salt','s'],['hash','s'],['v','n']] },
+    users:    { sheet: 'Потребители', cols: [['id','s'],['name','s'],['username','s'],['role','s'],['active','b'],['canAddWashers','b'],['dayWage','n'],['salt','s'],['hash','s'],['v','n'],['hourWage','N'],['hourFrom','S']] },
     prices:   { sheet: 'Услуги', cols: [['id','s'],['name','s'],['price','n'],['active','b'],['ord','n'],['v','n'],['free','b']] },
     firms:    { sheet: 'Фирми', cols: [['id','s'],['row','n'],['name','s'],['eik','s'],['contact','s'],['phone','s'],['email','s'],['list','j'],['prices','j'],['active','b'],['v','n'],['self','b'],['kind','s']] },
     kasa:     { sheet: 'Талони', cols: [['id','s'],['seq','n'],['date','s'],['time','s'],['talon','s'],['plate','s'],['np','s'],['service','s'],['items','j'],['price','n'],['gift','n'],['washer','s'],['cashier','s'],['void','b'],['reason','s'],['pay','S'],['firm','s'],['paySeq','N'],['payDate','S'],['paidAt','S'],['paidBy','S'],['v','n'],['handedAt','S'],['handedBy','S'],['driver','S'],['handMode','S'],['sig','S']] },
@@ -24,12 +24,12 @@ var HELIOS = (function () {
     ops:      { sheet: 'Операции', server: true, cols: [['cid','s'],['action','s'],['at','s']] }
   };
   var SYNCED = ['users', 'prices', 'firms', 'kasa', 'wash', 'payouts', 'firmPays', 'shifts', 'envs', 'takes', 'logins'];
-  var DEFAULT_SETTINGS = { talonName: 'АВТОМИВКА HELIOS', address: '', clientTalon: false, pct: 40,
+  var DEFAULT_SETTINGS = { talonName: 'АВТОМИВКА HELIOS', address: '', clientTalon: false, pct: 40, workStart: '08:00', workEnd: '18:00',
     loyalty: { on: true, every: 10, maxValue: 18, payWasher: true } };
   // действия, които касата може да направи и без интернет
   var OFFLINE_WRITE = ['addKasa', 'payKasa', 'handover', 'payWasher', 'takeWage', 'envTake', 'openShift', 'closeShift', 'login'];
   var LOCAL_READ = ['myDay', 'payroll', 'shiftState', 'loyalty'];
-  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa', 'addExpense', 'delExpense', 'bindCashDev', 'unbindCashDev']);
+  var WRITE = OFFLINE_WRITE.concat(['saveUser', 'saveLoyalty', 'saveSettings', 'savePrice', 'movePrice', 'addWash', 'receiveEnvelope', 'envAdd', 'firmPay', 'saveFirm', 'voidKasa', 'addExpense', 'delExpense', 'bindCashDev', 'unbindCashDev', 'saveWorkHours']);
 
   var r2 = function (x) { return Math.round((+x || 0) * 100) / 100; };
   var num = function (v) { return r2(Number(String(v == null ? '' : v).replace(',', '.')) || 0); };
@@ -187,12 +187,42 @@ var HELIOS = (function () {
         .concat(db.shifts.filter(function (s) { return s.openBy === name || s.closeBy === name; }).map(function (s) { return s.date; }))
         .concat(db.payouts.filter(function (x) { return x.kind === 'cashier' && x.washer === name; }).map(function (x) { return x.date; }))).sort();
     }
+    // надник на час: броят се минутите на смените на касиера в рамките на работното време
+    var hm = function (t) { var m = /^(\d{1,2}):(\d{2})/.exec(String(t || '')); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+    var mh = function (x) { return ('0' + Math.floor(x / 60)).slice(-2) + ':' + ('0' + (x % 60)).slice(-2); };
+    function shiftEnd(s) {
+      if (s.closeT && (!s.closeD || s.closeD === s.date)) return s.closeT;
+      if (!s.closeT && s.date === T) return now().slice(0, 5);
+      // не е приключена в същия ден: краят е последното действие на касиера в тази смяна
+      var last = s.openT;
+      db.kasa.forEach(function (k) { if (k.cashier === s.openBy && k.date === s.date && inShift(s, k) && k.time > last) last = k.time; if (k.paidBy === s.openBy && k.payDate === s.date && k.paidAt && k.paidAt > last) last = k.paidAt; });
+      db.payouts.forEach(function (x) { if (x.cashier === s.openBy && x.date === s.date && inShift(s, x) && x.time > last) last = x.time; });
+      return last;
+    }
+    function hourWork(c, d) {
+      var ws = hm(SET().workStart || '08:00'), we = hm(SET().workEnd || '18:00'), mins = 0, spans = [];
+      db.shifts.filter(function (s) { return s.openBy === c.name && s.date === d; }).forEach(function (s) {
+        var a = hm(s.openT), b = hm(shiftEnd(s)); if (a == null || b == null) return;
+        var late = !s.closeT ? s.date < T : !!(s.closeD && s.closeD !== s.date);
+        spans.push({ from: s.openT, to: mh(b), open: !s.closeT && s.date === T, late: late });
+        mins += Math.max(0, Math.min(b, we) - Math.max(a, ws));
+      });
+      return { mins: mins, spans: spans };
+    }
+    var isHourly = function (c, d) { return Number(c.hourWage) > 0 && !!c.hourFrom && d >= c.hourFrom; };
+    function dayEarn(c, d) {
+      if (isHourly(c, d)) return r2(hourWork(c, d).mins / 60 * Number(c.hourWage));
+      return workDays(c.name).indexOf(d) >= 0 ? r2(c.dayWage || 0) : 0;
+    }
     function cashRoll(c) {
       var w = r2(c.dayWage || 0), days = workDays(c.name), paid = db.payouts.filter(function (x) { return x.kind === 'cashier' && x.washer === c.name; });
       var s = function (a) { return r2(sum(a, function (x) { return x.amount; })); };
-      var prev = r2(days.filter(function (d) { return d < T; }).length * w - s(paid.filter(function (x) { return x.date < T; })));
-      var earnedToday = days.indexOf(T) >= 0 ? w : 0, paidToday = s(paid.filter(function (x) { return x.date === T; }));
-      return { name: c.name, wage: w, prev: prev, earnedToday: earnedToday, paidToday: paidToday, owed: r2(prev + earnedToday - paidToday),
+      var hd = uniq(days.concat(db.shifts.filter(function (x) { return x.openBy === c.name; }).map(function (x) { return x.date; })));
+      var prev = r2(sum(hd.filter(function (d) { return d < T; }), function (d) { return dayEarn(c, d); }) - s(paid.filter(function (x) { return x.date < T; })));
+      var earnedToday = dayEarn(c, T), paidToday = s(paid.filter(function (x) { return x.date === T; }));
+      var hw = isHourly(c, T) ? hourWork(c, T) : null;
+      return { name: c.name, wage: w, hourly: !!hw, hourWage: Number(c.hourWage) || 0, mins: hw ? hw.mins : 0, spans: hw ? hw.spans : [], workStart: SET().workStart || '08:00', workEnd: SET().workEnd || '18:00',
+        prev: prev, earnedToday: earnedToday, paidToday: paidToday, owed: r2(prev + earnedToday - paidToday),
         takes: paid.filter(function (x) { return x.date === T; }).map(function (x) { return { time: x.time, amount: x.amount }; }) };
     }
     var cashierPay = function (d) { return r2(sum(db.payouts.filter(function (x) { return x.kind === 'cashier' && x.date.slice(0, d.length) === d; }), function (x) { return x.amount; })); };
@@ -236,7 +266,9 @@ var HELIOS = (function () {
           if (ex && ex.role === 'admin' && (p.role !== 'admin' || p.active === false)) throw new Error('Собственикът не може да бъде спрян');
           if (!ex && p.role === 'admin') throw new Error('Избери роля');
           var rec = { name: name, username: username, role: p.role, active: p.active !== false, canAddWashers: p.role === 'cashier' && !!p.canAddWashers };
-          if (isAdmin && p.role === 'cashier') { var dw = num(p.dayWage); if (dw < 0 || dw > 500) throw new Error('Невалиден надник'); rec.dayWage = dw; }
+          if (isAdmin && p.role === 'cashier') { var dw = num(p.dayWage); if (dw < 0 || dw > 500) throw new Error('Невалиден надник'); rec.dayWage = dw;
+            if (p.hourWage !== undefined) { var hw2 = num(p.hourWage); if (hw2 < 0 || hw2 > 100) throw new Error('Невалидна сума на час'); rec.hourWage = hw2;
+              rec.hourFrom = hw2 > 0 ? ((ex && Number(ex.hourWage) > 0 && ex.hourFrom) || T) : ''; } }
           if (pass) { rec.salt = env.uid() + env.uid(); rec.hash = passHash(rec.salt, pass); }
           if (ex) {
             if (ex.name !== name) rename(ex.name, name, ex.role);
@@ -255,6 +287,8 @@ var HELIOS = (function () {
           db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && cn[k.cashier] === 'cashier'; }).forEach(function (k) { var r0 = row(k.date, k.cashier); r0.talons++; if (!r0.firstT || k.time < r0.firstT) r0.firstT = k.time; if (k.time > r0.lastT) r0.lastT = k.time; });
           db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && !k.void && cn[k.washer] === 'washer'; }).forEach(function (k) { row(k.date, k.washer).cars++; });
           db.wash.filter(function (w) { return w.date.slice(0, 7) === cm && cn[w.washer] === 'washer'; }).forEach(function (w) { var r0 = row(w.date, w.washer); if (!r0.firstW || w.time < r0.firstW) r0.firstW = w.time; if (w.time > r0.lastW) r0.lastW = w.time; });
+          Object.keys(rows).forEach(function (key) { var r0 = rows[key], cu = find(db.users, function (x) { return x.name === r0.name; });
+            if (cu && r0.role === 'cashier' && isHourly(cu, r0.date)) { r0.mins = hourWork(cu, r0.date).mins; r0.earn = dayEarn(cu, r0.date); r0.hourWage = Number(cu.hourWage); } });
           return { month: cm, rows: Object.keys(rows).map(function (key) { return rows[key]; }).filter(function (r0) { return cn[r0.name]; }).sort(function (a, b) { return a.date === b.date ? (a.name < b.name ? -1 : 1) : (a.date < b.date ? 1 : -1); }) };
         }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
@@ -275,6 +309,12 @@ var HELIOS = (function () {
           if (every < 2 || every > 50) throw new Error('„Всяко … измиване“ трябва да е между 2 и 50');
           if (maxValue <= 0) throw new Error('Въведи до каква стойност е подаръкът');
           S.loyalty = { on: !!p.on, every: every, maxValue: maxValue, payWasher: !!p.payWasher }; return {};
+        }
+        case 'saveWorkHours': {   // работно време на касата — по него се смята надникът на час
+          need(u, ['admin']);
+          var w1 = hm(p.start), w2 = hm(p.end);
+          if (w1 == null || w2 == null || w1 >= w2) throw new Error('Въведи начало и край на работното време (началото преди края)');
+          S.workStart = mh(w1); S.workEnd = mh(w2); return {};
         }
         case 'loyalty': {
           need(u, ['cashier', 'admin']);
@@ -508,7 +548,9 @@ var HELIOS = (function () {
             payments: pays.slice().reverse(),
             cashiers: db.users.filter(function (c) { return c.role === 'cashier' && (workDays(c.name).indexOf(rd) >= 0 || (rd === T && cashRoll(c).owed > 0.004)); }).map(function (c) {
               var tk = db.payouts.filter(function (y) { return y.kind === 'cashier' && y.washer === c.name && y.date === rd; }), cr = cashRoll(c);
-              return { name: c.name, wage: c.dayWage || 0, worked: workDays(c.name).indexOf(rd) >= 0, prev: cr.prev, taken: r2(sum(tk, function (y) { return y.amount; })), time: tk.length ? tk[tk.length - 1].time : '', owed: cr.owed }; }),
+              var hw3 = isHourly(c, rd) ? hourWork(c, rd) : null;
+              return { name: c.name, wage: c.dayWage || 0, hourly: !!hw3, hourWage: Number(c.hourWage) || 0, mins: hw3 ? hw3.mins : 0, spans: hw3 ? hw3.spans : [], earned: dayEarn(c, rd),
+                worked: workDays(c.name).indexOf(rd) >= 0 || !!(hw3 && hw3.spans.length), prev: cr.prev, taken: r2(sum(tk, function (y) { return y.amount; })), time: tk.length ? tk[tk.length - 1].time : '', owed: cr.owed }; }),
             noReceipt: nr, noWasher: nw, washers: ws, kasa: x.kasa.slice().reverse() };
         }
         case 'monthReport': {
@@ -526,8 +568,9 @@ var HELIOS = (function () {
           var mp = db.payouts.filter(function (y) { return y.date.slice(0, 7) === m; }), mrev = sum(all, pr2), mcp = cashierPay(m), mwp = sum(all, wb) * PCT() / 100;
           var fpm = db.firmPays.filter(function (y) { return y.month === m; }), amt = function (y) { return y.amount; };
           var cashiersM = db.users.filter(function (c) { return c.role === 'cashier'; }).map(function (c) {
-            var dn = workDays(c.name).filter(function (d3) { return d3.slice(0, 7) === m; }).length;
-            return { name: c.name, days: dn, wage: c.dayWage || 0, earned: r2(dn * (c.dayWage || 0)) }; }).filter(function (c) { return c.days > 0; });
+            var dl = workDays(c.name).filter(function (d3) { return d3.slice(0, 7) === m; });
+            return { name: c.name, days: dl.length, wage: c.dayWage || 0, hourWage: Number(c.hourWage) || 0,
+              mins: sum(dl.filter(function (d3) { return isHourly(c, d3); }), function (d3) { return hourWork(c, d3).mins; }), earned: r2(sum(dl, function (d3) { return dayEarn(c, d3); })) }; }).filter(function (c) { return c.days > 0; });
           var ex = db.expenses.filter(function (y) { return !y.void && y.date.slice(0, 7) === m; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; }), exCat = {};
           ex.forEach(function (y) { exCat[y.cat] = r2((exCat[y.cat] || 0) + y.amount); });
           var fin = db.firmPays.filter(function (y) { return String(y.date || '').slice(0, 7) === m; });
