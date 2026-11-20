@@ -184,7 +184,8 @@ var HELIOS = (function () {
     function workDays(name) {
       return uniq(db.kasa.filter(function (k) { return k.cashier === name; }).map(function (k) { return k.date; })
         .concat(db.logins.filter(function (x) { return x.name === name; }).map(function (x) { return x.date; }))
-        .concat(db.shifts.filter(function (s) { return s.openBy === name || s.closeBy === name; }).map(function (s) { return s.date; }))
+        .concat(db.shifts.filter(function (s) { return s.openBy === name; }).map(function (s) { return s.date; }))
+        .concat(db.shifts.filter(function (s) { return s.closeBy === name; }).map(function (s) { return s.closeD || s.date; }))
         .concat(db.payouts.filter(function (x) { return x.kind === 'cashier' && x.washer === name; }).map(function (x) { return x.date; }))).sort();
     }
     // надник на час: броят се минутите на смените на касиера в рамките на работното време
@@ -210,9 +211,16 @@ var HELIOS = (function () {
       return { mins: mins, spans: spans };
     }
     var isHourly = function (c, d) { return Number(c.hourWage) > 0 && !!c.hourFrom && d >= c.hourFrom; };
+    // смяна, която не е приключена в същия ден → надникът се намалява до последното действие на касиера
+    function lateCut(c, d) {
+      var hw = hourWork(c, d); if (!hw.spans.some(function (x) { return x.late; })) return null;
+      var day = hm(SET().workEnd || '18:00') - hm(SET().workStart || '08:00'); if (day <= 0) return null;
+      return { mins: hw.mins, spans: hw.spans, earn: r2(Math.min(Number(c.dayWage) || 0, hw.mins / day * (Number(c.dayWage) || 0))) };
+    }
     function dayEarn(c, d) {
       if (isHourly(c, d)) return r2(hourWork(c, d).mins / 60 * Number(c.hourWage));
-      return workDays(c.name).indexOf(d) >= 0 ? r2(c.dayWage || 0) : 0;
+      if (workDays(c.name).indexOf(d) < 0) return 0;
+      var lc = lateCut(c, d); return lc ? lc.earn : r2(c.dayWage || 0);
     }
     function cashRoll(c) {
       var w = r2(c.dayWage || 0), days = workDays(c.name), paid = db.payouts.filter(function (x) { return x.kind === 'cashier' && x.washer === c.name; });
@@ -288,7 +296,8 @@ var HELIOS = (function () {
           db.kasa.filter(function (k) { return k.date.slice(0, 7) === cm && !k.void && cn[k.washer] === 'washer'; }).forEach(function (k) { row(k.date, k.washer).cars++; });
           db.wash.filter(function (w) { return w.date.slice(0, 7) === cm && cn[w.washer] === 'washer'; }).forEach(function (w) { var r0 = row(w.date, w.washer); if (!r0.firstW || w.time < r0.firstW) r0.firstW = w.time; if (w.time > r0.lastW) r0.lastW = w.time; });
           Object.keys(rows).forEach(function (key) { var r0 = rows[key], cu = find(db.users, function (x) { return x.name === r0.name; });
-            if (cu && r0.role === 'cashier' && isHourly(cu, r0.date)) { r0.mins = hourWork(cu, r0.date).mins; r0.earn = dayEarn(cu, r0.date); r0.hourWage = Number(cu.hourWage); } });
+            if (cu && r0.role === 'cashier' && isHourly(cu, r0.date)) { r0.mins = hourWork(cu, r0.date).mins; r0.earn = dayEarn(cu, r0.date); r0.hourWage = Number(cu.hourWage); }
+            else if (cu && r0.role === 'cashier') { var lc4 = lateCut(cu, r0.date); if (lc4) { r0.cutMins = lc4.mins; r0.cutEarn = lc4.earn; r0.dayWage = Number(cu.dayWage) || 0; } } });
           return { month: cm, rows: Object.keys(rows).map(function (key) { return rows[key]; }).filter(function (r0) { return cn[r0.name]; }).sort(function (a, b) { return a.date === b.date ? (a.name < b.name ? -1 : 1) : (a.date < b.date ? 1 : -1); }) };
         }
         case 'getSettings': need(u, ['admin']); return JSON.parse(JSON.stringify(S));
@@ -548,8 +557,8 @@ var HELIOS = (function () {
             payments: pays.slice().reverse(),
             cashiers: db.users.filter(function (c) { return c.role === 'cashier' && (workDays(c.name).indexOf(rd) >= 0 || (rd === T && cashRoll(c).owed > 0.004)); }).map(function (c) {
               var tk = db.payouts.filter(function (y) { return y.kind === 'cashier' && y.washer === c.name && y.date === rd; }), cr = cashRoll(c);
-              var hw3 = isHourly(c, rd) ? hourWork(c, rd) : null;
-              return { name: c.name, wage: c.dayWage || 0, hourly: !!hw3, hourWage: Number(c.hourWage) || 0, mins: hw3 ? hw3.mins : 0, spans: hw3 ? hw3.spans : [], earned: dayEarn(c, rd),
+              var hw3 = isHourly(c, rd) ? hourWork(c, rd) : null, lc3 = hw3 ? null : lateCut(c, rd);
+              return { name: c.name, wage: c.dayWage || 0, hourly: !!hw3, hourWage: Number(c.hourWage) || 0, mins: hw3 ? hw3.mins : 0, spans: hw3 ? hw3.spans : [], earned: dayEarn(c, rd), cut: lc3,
                 worked: workDays(c.name).indexOf(rd) >= 0 || !!(hw3 && hw3.spans.length), prev: cr.prev, taken: r2(sum(tk, function (y) { return y.amount; })), time: tk.length ? tk[tk.length - 1].time : '', owed: cr.owed }; }),
             noReceipt: nr, noWasher: nw, washers: ws, kasa: x.kasa.slice().reverse() };
         }

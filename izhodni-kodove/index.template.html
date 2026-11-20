@@ -1453,6 +1453,7 @@ async function tabCashLog() {
       ${r.shifts.map(s => `<div class="muted">🧾 Смяна: отворил ${esc(s.open)}${s.close ? ' · ' + (s.mode === 'handover' ? 'предал' : 'приключил') + ' ' + esc(s.close) + (s.closeBy && s.closeBy !== r.name ? ' (' + esc(s.closeBy) + ')' : '') : ' · още отворена'}</div>`).join('')}
       ${r.talons ? `<div class="muted">🚗 Талони: от ${esc(r.firstT)} до ${esc(r.lastT)}</div>` : ''}
       ${r.mins != null ? `<div class="muted">⏱ Платено време: ${fmtMins(r.mins)} × ${eur(r.hourWage)} = <b>${eur(r.earn)}</b></div>` : ''}
+      ${r.cutMins != null ? `<div style="color:var(--red)">⚠️ Не е приключил деня — надник до последния талон: ${fmtMins(r.cutMins)} = <b>${eur(r.cutEarn)}</b> вместо ${eur(r.dayWage)}</div>` : ''}
       ${W && r.firstW ? `<div class="muted">🧽 Започнати коли: от ${esc(r.firstW)} до ${esc(r.lastW)}</div>` : ''}</div>`).join('') + '</div>').join('');
 }
 async function tabRep() {
@@ -1507,7 +1508,7 @@ async function tabRep() {
   if (debt.length) h += `<div class="sec-t">Неизплатени заплати</div><div class="card">` + debt.map(w =>
     `<div class="row"><div><b>${esc(w.name)}</b><div class="muted">${w.prev > 0.004 ? 'от предишни дни ' + eur(w.prev) + ' · ' : ''}от този ден ${eur(w.owed - w.prev)}</div></div><b class="tnum" style="color:var(--amber)">${eur(w.owed)}</b></div>`).join('') + '</div>';
   if (j.cashiers && j.cashiers.length) h += `<div class="sec-t">Касиери · надник</div><div class="card">` + j.cashiers.map(c =>
-    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">${c.worked === false ? 'не е работил днес · от предишни дни' : (c.hourly ? '⏱ ' + (c.spans.length ? spanTxt(c.spans) + ' · ' : '') + fmtMins(c.mins) + ' × ' + eur(c.hourWage) + ' = ' + eur(c.earned) : 'надник ' + eur(c.wage)) + (c.prev > 0.004 ? ' · от предишни дни ' + eur(c.prev) : '') + (c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето')}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
+    `<div class="row"><div><b>${esc(c.name)}</b><div class="muted">${c.worked === false ? 'не е работил днес · от предишни дни' : (c.hourly ? '⏱ ' + (c.spans.length ? spanTxt(c.spans) + ' · ' : '') + fmtMins(c.mins) + ' × ' + eur(c.hourWage) + ' = ' + eur(c.earned) : c.cut ? `<span style="color:var(--red)">не е приключил деня — надник ${eur(c.cut.earn)} вместо ${eur(c.wage)}</span> (${spanTxt(c.cut.spans)} · ${fmtMins(c.cut.mins)})` : 'надник ' + eur(c.wage)) + (c.prev > 0.004 ? ' · от предишни дни ' + eur(c.prev) : '') + (c.time ? ' · взето ' + eur(c.taken) + ' в ' + esc(c.time) : ' · нищо не е взето')}</div></div>${c.owed > 0.004 ? `<b class="tnum" style="color:var(--amber)">остава ${eur(c.owed)}</b>` : '<span class="badge ok">✓ изплатен</span>'}</div>`).join('') + '</div>';
   if (j.payments.length) h += `<div class="sec-t">Изплатени заплати</div><div class="card">` + j.payments.map(x =>
     `<div class="row"><div><b>${esc(x.washer)}</b>${x.kind === 'cashier' ? ' <span class="badge blue">надник касиер</span>' : ''}<div class="muted">${esc(x.time)}${x.kind === 'cashier' ? '' : ' · платил: ' + esc(x.cashier)}</div></div><b class="tnum">${eur(x.amount)}</b></div>`).join('') + '</div>';
   $('#rep').innerHTML = h;
@@ -1993,7 +1994,7 @@ async function tabSet() {
       ${u.active ? '<span class="badge ok">активен</span>' : '<span class="badge gray">спрян</span>'}</button>`).join('') +
     `<button class="btn teal" id="uNew">${ic('plus', 18)} Нов човек</button></div>
     <div class="sec-t">Компютър на касата</div><div class="card" id="cdCard">${cashDevCard(j)}</div>
-    <div class="sec-t">Работно време на касата</div><div class="card"><p class="muted" style="margin:0 0 8px">По него се смята надникът на час: броят се само минутите от смяната между началото и края. Закъснение или по-ранно приключване намалява надника.</p>
+    <div class="sec-t">Работно време на касата</div><div class="card"><p class="muted" style="margin:0 0 8px">Ако касиерът не приключи деня, надникът му се намалява до последния му талон, по това работно време (напр. 8–16 ч от 8–18 ч = 8/10 от надника). По него се смята и надникът на час, ако е зададен.</p>
       <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap"><div><label class="l" for="whS">От</label><input class="f" type="time" id="whS" value="${esc(j.workStart || '08:00')}" style="width:130px"></div>
       <div><label class="l" for="whE">До</label><input class="f" type="time" id="whE" value="${esc(j.workEnd || '18:00')}" style="width:130px"></div>
       </div><button class="btn green" id="whSave" style="margin-top:12px">Запази работното време</button></div>
